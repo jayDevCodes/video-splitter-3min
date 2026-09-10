@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+from app.config import OUTPUT_DIR
 from app.services.metadata_manager import load_status
 from app.services.youtube_uploader import VIDEO_RE, _part_number
 
@@ -41,7 +42,7 @@ def folder_summary(output_dir: Path) -> dict:
 
     return {
         "folder": output_dir.name,
-        "output_directory": str(output_dir.relative_to(output_dir.parents[len(output_dir.parts) - len(output_dir.parents[0].parts) - 1])) if False else str(output_dir.relative_to(Path.cwd() if OUTPUT_ROOT := None else output_dir.parent)),
+        "output_directory": str(output_dir.relative_to(OUTPUT_DIR.parent)),
         "generated_now": len(generated),
         "uploaded": uploaded_count,
         "remaining": len(pending),
@@ -53,10 +54,10 @@ def folder_summary(output_dir: Path) -> dict:
 
 
 def discover_upload_folders(output_root: Path) -> list[dict]:
-    """Find any directory under output_root that contains unuploaded video parts.
+    """Find any directory under output_root that contains pending video parts.
 
-    This supports both the current layout (output/<video>/part_*.mp4) and
-    older/nested layouts (output/<video>/<subfolder>/part_*.mp4).
+    Supports the current layout (output/<video>/part_*.mp4) and older/nested
+    layouts (output/<video>/<subfolder>/part_*.mp4).
     """
     if not output_root.exists():
         return []
