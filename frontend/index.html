@@ -10,7 +10,7 @@
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO TOOL</div>
     <h1>Generate Shorts first.</h1>
-    <p class="subtitle">Create all video parts first. YouTube uploads are handled separately, and unfinished upload queues stay visible even after a page refresh.</p>
+    <p class="subtitle">Create all video parts first. Upload new or previously generated Shorts whenever you are ready.</p>
 
     <form id="split-form">
       <section class="workflow-section generation-section">
@@ -35,16 +35,19 @@
           <label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option></select></label>
         </div>
 
-        <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
+        <div class="generation-actions">
+          <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
+          <button id="old-upload-btn" class="secondary-btn" type="button">Upload Old Video</button>
+        </div>
       </section>
     </form>
 
     <section id="upload-section" class="workflow-section upload-section" hidden>
       <div class="workflow-head">
         <div>
-          <div class="section-kicker">STEP 02 · YOUTUBE</div>
-          <h2>Now Upload to YouTube</h2>
-          <p id="upload-summary">Your newly generated Shorts are ready for upload.</p>
+          <div class="section-kicker">YOUTUBE UPLOAD</div>
+          <h2 id="upload-heading">Now Upload to YouTube</h2>
+          <p id="upload-summary">All Shorts are ready. Configure the upload details and continue the queue.</p>
         </div>
         <span class="workflow-badge ready-badge">READY</span>
       </div>
@@ -58,14 +61,24 @@
       <form id="youtube-form">
         <input id="upload-output-directory" type="hidden" />
         <div class="upload-form-grid">
-          <label>Title template<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small><code>{number}</code> follows the original generation order.</small></label>
-          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Wait this long before starting the next Short.</small></label>
+          <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small><code>{number}</code> follows the original generation order.</small></label>
+          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>The saved folder gap is loaded automatically.</small></label>
           <label class="full-width">Description<textarea id="upload-description" rows="7" placeholder="Write the description for every Short...\n\nAdd hashtags, links and CTA here."></textarea></label>
+          <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral" /></label>
+          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png" /><small>Optional. Saved thumbnail is reused when no new file is selected.</small></label>
         </div>
 
+        <details class="advanced-upload">
+          <summary>More YouTube settings</summary>
+          <div class="advanced-upload-grid">
+            <label>Visibility<select id="upload-privacy"><option value="private" selected>Private — review first</option><option value="unlisted">Unlisted — link only</option><option value="public">Public — publish immediately</option></select></label>
+            <label>Category ID<input id="upload-category-id" type="text" value="22" placeholder="22" /></label>
+          </div>
+        </details>
+
         <div class="upload-actions">
-          <div class="upload-rule"><strong>Queue is resumable</strong><span>Already uploaded Shorts are skipped. A successful upload deletes its local MP4.</span></div>
-          <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Now Upload to YouTube</button>
+          <div class="upload-rule"><strong>Resumable queue</strong><span>Already uploaded Shorts are skipped. Successful uploads can delete their local MP4s.</span></div>
+          <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Continue Upload</button>
         </div>
       </form>
     </section>
@@ -73,11 +86,11 @@
     <section id="pending-section" class="workflow-section pending-section" hidden>
       <div class="workflow-head">
         <div>
-          <div class="section-kicker">CONTINUE AFTER REFRESH</div>
-          <h2>Pending YouTube Uploads</h2>
-          <p>These output folders contain Shorts that are still waiting to be uploaded. Pick any folder to continue its queue.</p>
+          <div class="section-kicker">EXISTING OUTPUT</div>
+          <h2>Upload Old Video</h2>
+          <p>Select a previously generated output folder. Saved title, description, thumbnail and upload gap will be loaded into the form automatically.</p>
         </div>
-        <span id="pending-count-badge" class="workflow-badge">0 QUEUES</span>
+        <span id="pending-count-badge" class="workflow-badge">0 FOLDERS</span>
       </div>
       <div id="pending-list" class="pending-list"></div>
     </section>
