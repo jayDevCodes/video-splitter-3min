@@ -17,8 +17,13 @@ def _part_number(path: Path) -> int:
 
 def _safe_output_dir(output_directory: str) -> Path:
     raw = Path(output_directory)
-    candidate = (OUTPUT_DIR / raw).resolve() if not raw.is_absolute() else raw.resolve()
     root = OUTPUT_DIR.resolve()
+    if raw.is_absolute():
+        candidate = raw.resolve()
+    elif raw.parts and raw.parts[0] == OUTPUT_DIR.name:
+        candidate = (OUTPUT_DIR.parent / raw).resolve()
+    else:
+        candidate = (OUTPUT_DIR / raw).resolve()
     if candidate != root and root not in candidate.parents:
         raise HTTPException(status_code=400, detail="Invalid output directory.")
     if not candidate.is_dir():
@@ -31,10 +36,7 @@ def prepare_upload(output_directory: str):
     output_dir = _safe_output_dir(output_directory)
     videos = sorted(output_dir.glob("part_*.mp4"), key=_part_number)
     status = load_status(output_dir)
-    uploaded_names = {
-        name for name, item in status.get("files", {}).items()
-        if item.get("status") == "uploaded"
-    }
+    uploaded_names = {name for name, item in status.get("files", {}).items() if item.get("status") == "uploaded"}
     pending = [p for p in videos if p.name not in uploaded_names]
     return {
         "output_directory": output_directory,
@@ -117,12 +119,7 @@ def upload_to_youtube(
                 _, response = request.next_chunk()
 
             video_id = response["id"]
-            item = {
-                "status": "uploaded",
-                "video_id": video_id,
-                "url": f"https://youtu.be/{video_id}",
-                "deleted": False,
-            }
+            item = {"status": "uploaded", "video_id": video_id, "url": f"https://youtu.be/{video_id}", "deleted": False}
             if delete_after_upload and video_path.exists():
                 video_path.unlink()
                 item["deleted"] = True
