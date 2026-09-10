@@ -10,7 +10,7 @@
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO TOOL</div>
     <h1>Generate Shorts first.</h1>
-    <p class="subtitle">Split and resize your video completely. After every Short is generated, the YouTube upload options will appear below.</p>
+    <p class="subtitle">Create all video parts first. YouTube uploads are handled separately, and unfinished upload queues stay visible even after a page refresh.</p>
 
     <form id="split-form">
       <section class="workflow-section generation-section">
@@ -18,7 +18,7 @@
           <div>
             <div class="section-kicker">STEP 01 · VIDEO GENERATION</div>
             <h2>Create all Shorts</h2>
-            <p>YouTube settings are intentionally kept out of this step. Generation finishes first.</p>
+            <p>Choose a source video, split length and output format. Nothing is uploaded during generation.</p>
           </div>
           <span class="workflow-badge">GENERATE</span>
         </div>
@@ -42,49 +42,44 @@
     <section id="upload-section" class="workflow-section upload-section" hidden>
       <div class="workflow-head">
         <div>
-          <div class="section-kicker">STEP 02 · YOUTUBE UPLOAD</div>
+          <div class="section-kicker">STEP 02 · YOUTUBE</div>
           <h2>Now Upload to YouTube</h2>
-          <p id="upload-summary">All Shorts have been generated. Enter the upload details and start the queue.</p>
+          <p id="upload-summary">Your newly generated Shorts are ready for upload.</p>
         </div>
         <span class="workflow-badge ready-badge">READY</span>
       </div>
 
       <div class="queue-strip">
-        <div><span class="queue-label">OUTPUT FOLDER</span><strong id="output-folder">—</strong></div>
-        <div><span class="queue-label">SHORTS READY</span><strong id="parts-count">0</strong></div>
-        <div><span class="queue-label">UPLOAD ORDER</span><strong>part_001 → part_002 → …</strong></div>
+        <div><span class="queue-label">SELECTED FOLDER</span><strong id="output-folder">—</strong></div>
+        <div><span class="queue-label">REMAINING</span><strong id="parts-count">0</strong></div>
+        <div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div>
       </div>
 
       <form id="youtube-form">
         <input id="upload-output-directory" type="hidden" />
-        <div class="youtube-upload-grid">
-          <section class="setting-card setting-card-wide">
-            <div class="setting-card-title"><span class="step-number">01</span><div><strong>Video Details</strong><span>Applied to each uploaded Short</span></div></div>
-            <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small>Use <code>{number}</code> to automatically use the generated Short number.</small></label>
-            <label>Description<textarea id="upload-description" rows="7" placeholder="Write the description for your Shorts...\n\nAdd hashtags, links and CTA here."></textarea></label>
-          </section>
-
-          <section class="setting-card queue-card">
-            <div class="setting-card-title"><span class="step-number">02</span><div><strong>Upload Timing</strong><span>Control the queue</span></div></div>
-            <div class="order-lock"><span class="order-icon">01</span><div><strong>Fixed order</strong><small>Uploads always follow the generated order: part_001, part_002, part_003…</small></div></div>
-            <label>Gap between Shorts (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Example: 60 = wait 1 minute before starting the next Short.</small></label>
-            <label class="upload-toggle-row danger-toggle"><input id="delete-after-upload" type="checkbox" checked /><span class="toggle-ui"></span><span class="toggle-copy"><strong>Delete local Short after upload</strong><small>Delete the MP4 only after YouTube confirms a successful upload.</small></span></label>
-          </section>
-
-          <section class="setting-card">
-            <div class="setting-card-title"><span class="step-number">03</span><div><strong>Publishing</strong><span>Optional YouTube settings</span></div></div>
-            <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral" /><small>Separate tags with commas.</small></label>
-            <label>Visibility<select id="upload-privacy"><option value="private" selected>Private — review first</option><option value="unlisted">Unlisted — link only</option><option value="public">Public — publish immediately</option></select></label>
-            <label>Category ID<input id="upload-category-id" type="text" value="22" placeholder="22" /></label>
-            <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png" /><small>Optional. One thumbnail is reused for every uploaded Short.</small></label>
-          </section>
+        <div class="upload-form-grid">
+          <label>Title template<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small><code>{number}</code> follows the original generation order.</small></label>
+          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Wait this long before starting the next Short.</small></label>
+          <label class="full-width">Description<textarea id="upload-description" rows="7" placeholder="Write the description for every Short...\n\nAdd hashtags, links and CTA here."></textarea></label>
         </div>
 
         <div class="upload-actions">
-          <div class="oauth-note"><strong>Google OAuth</strong><span>The first upload may open Google authorization.</span></div>
+          <div class="upload-rule"><strong>Queue is resumable</strong><span>Already uploaded Shorts are skipped. A successful upload deletes its local MP4.</span></div>
           <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Now Upload to YouTube</button>
         </div>
       </form>
+    </section>
+
+    <section id="pending-section" class="workflow-section pending-section" hidden>
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">CONTINUE AFTER REFRESH</div>
+          <h2>Pending YouTube Uploads</h2>
+          <p>These output folders contain Shorts that are still waiting to be uploaded. Pick any folder to continue its queue.</p>
+        </div>
+        <span id="pending-count-badge" class="workflow-badge">0 QUEUES</span>
+      </div>
+      <div id="pending-list" class="pending-list"></div>
     </section>
 
     <div id="status" class="status" hidden></div>
