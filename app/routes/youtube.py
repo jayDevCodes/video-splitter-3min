@@ -54,7 +54,13 @@ def get_upload_folder(output_directory: str):
         metadata = load_metadata(output_dir)
     except FileNotFoundError:
         metadata = {}
-    return {**summary, "metadata": metadata}
+    saved_thumbnail = metadata.get("thumbnail") if metadata else None
+    thumbnail_path = output_dir / saved_thumbnail if saved_thumbnail else None
+    return {
+        **summary,
+        "metadata": metadata,
+        "saved_thumbnail": saved_thumbnail if thumbnail_path and thumbnail_path.exists() else None,
+    }
 
 
 @router.get("/prepare")
@@ -86,8 +92,15 @@ def upload_to_youtube(
     if not videos:
         raise HTTPException(status_code=400, detail="No generated Shorts found in this folder.")
 
-    thumbnail_name = None
-    thumbnail_path = None
+    try:
+        existing_metadata = load_metadata(output_dir)
+    except FileNotFoundError:
+        existing_metadata = {}
+
+    saved_thumbnail_name = existing_metadata.get("thumbnail")
+    thumbnail_name = saved_thumbnail_name if saved_thumbnail_name and (output_dir / saved_thumbnail_name).exists() else None
+    thumbnail_path = output_dir / thumbnail_name if thumbnail_name else None
+
     if thumbnail and thumbnail.filename:
         suffix = Path(thumbnail.filename).suffix.lower()
         if suffix not in {".jpg", ".jpeg", ".png"}:
@@ -110,6 +123,7 @@ def upload_to_youtube(
         made_for_kids=made_for_kids,
         auto_upload=False,
         gap_seconds=gap_seconds,
+        delete_after_upload=delete_after_upload,
     )
 
     status = load_status(output_dir)
