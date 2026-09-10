@@ -26,6 +26,7 @@ def write_metadata(
     category_id: str,
     made_for_kids: bool,
     auto_upload: bool,
+    gap_seconds: int | None = None,
 ) -> Path:
     if privacy not in {"private", "unlisted", "public"}:
         raise ValueError("privacy must be private, unlisted, or public")
@@ -43,6 +44,7 @@ def write_metadata(
         "upload": {
             "enabled": True,
             "auto_upload": auto_upload,
+            "gap_seconds": 60 if gap_seconds is None else gap_seconds,
         },
     }
 
@@ -79,10 +81,7 @@ def is_ready(output_dir: Path) -> bool:
 
 
 def render_title(template: str, *, number: int, filename: str) -> str:
-    values = {
-        "number": number,
-        "filename": filename,
-    }
+    values = {"number": number, "filename": filename}
     try:
         return template.format(**values).strip()
     except (KeyError, ValueError):
