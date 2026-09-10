@@ -36,7 +36,6 @@ def _safe_output_dir(output_directory: str) -> Path:
 def list_upload_folders():
     if not OUTPUT_DIR.exists():
         return {"folders": []}
-
     folders = []
     for output_dir in sorted(OUTPUT_DIR.iterdir(), key=lambda item: item.name.lower()):
         if not output_dir.is_dir() or not (output_dir / "READY").exists():
@@ -127,44 +126,24 @@ def upload_to_youtube(
         number = _part_number(video_path)
         title = render_title(title_template, number=number, filename=output_dir.name)
         body = {
-            "snippet": {
-                "title": title[:100],
-                "description": description[:5000],
-                "tags": tags_list,
-                "categoryId": str(category_id),
-            },
-            "status": {
-                "privacyStatus": privacy,
-                "selfDeclaredMadeForKids": made_for_kids,
-            },
+            "snippet": {"title": title[:100], "description": description[:5000], "tags": tags_list, "categoryId": str(category_id)},
+            "status": {"privacyStatus": privacy, "selfDeclaredMadeForKids": made_for_kids},
         }
-
         try:
-            request = service.videos().insert(
-                part="snippet,status",
-                body=body,
-                media_body=MediaFileUpload(str(video_path), chunksize=-1, resumable=True),
-            )
+            request = service.videos().insert(part="snippet,status", body=body, media_body=MediaFileUpload(str(video_path), chunksize=-1, resumable=True))
             response = None
             while response is None:
                 _, response = request.next_chunk()
-
             video_id = response["id"]
             if thumbnail_path and thumbnail_path.exists():
-                service.thumbnails().set(
-                    videoId=video_id,
-                    media_body=MediaFileUpload(str(thumbnail_path)),
-                ).execute()
-
+                service.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path))).execute()
             item = {"status": "uploaded", "video_id": video_id, "url": f"https://youtu.be/{video_id}", "deleted": False}
             if delete_after_upload and video_path.exists():
                 video_path.unlink()
                 item["deleted"] = True
-
             files_status[video_path.name] = item
             results.append({"filename": video_path.name, **item})
             save_status(output_dir, status)
-
             if index < len(pending) - 1 and gap_seconds:
                 time.sleep(gap_seconds)
         except Exception as exc:
@@ -175,12 +154,4 @@ def upload_to_youtube(
             break
 
     remaining = len(list(output_dir.glob("part_*.mp4")))
-    return {
-        "output_directory": output_directory,
-        "total_requested": len(pending),
-        "processed": len(results),
-        "remaining_files": remaining,
-        "stopped_on_error": any(item.get("status") == "failed" for item in results),
-        "results": results,
-        "metadata_saved": str(metadata_path.relative_to(output_dir)),
-    }
+    return {"output_directory": output_directory, "total_requested": len(pending), "processed": len(results), "remaining_files": remaining, "stopped_on_error": any(item.get("status") == "failed" for item in results), "results": results, "metadata_saved": str(metadata_path.relative_to(output_dir))}
