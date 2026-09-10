@@ -3,14 +3,14 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video Splitter • 3 Minute Parts</title>
+  <title>Video Splitter • YouTube Shorts Automation</title>
   <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
   <main class="card">
-    <div class="eyebrow">LOCAL VIDEO TOOL</div>
-    <h1>Split a video into 3-minute parts</h1>
-    <p class="subtitle">Upload one video. Every part is numbered in series, with the final clip allowed to be shorter.</p>
+    <div class="eyebrow">LOCAL VIDEO + YOUTUBE AUTOMATION</div>
+    <h1>Split, resize &amp; prepare YouTube Shorts</h1>
+    <p class="subtitle">Create one output folder per video. Its title, description and thumbnail can be shared by every Short, with optional automatic YouTube uploading.</p>
 
     <form id="split-form">
       <label class="dropzone" for="video-file">
@@ -24,7 +24,6 @@
           Part length (seconds)
           <input id="chunk-seconds" type="number" value="180" min="1" max="3600" />
         </label>
-
         <label>
           Output format
           <select id="orientation">
@@ -34,7 +33,58 @@
         </label>
       </div>
 
-      <button id="split-btn" type="submit">Split &amp; Resize Video</button>
+      <details class="youtube-settings" open>
+        <summary>YouTube metadata &amp; auto-upload</summary>
+        <p class="muted">These settings are saved once inside this video's output folder and apply to every generated Short.</p>
+
+        <label>
+          Title template
+          <input id="title-template" type="text" value="{filename} #{number}" />
+          <small class="muted">Use <code>{number}</code> for 1, 2, 3... and <code>{filename}</code> for the output folder name.</small>
+        </label>
+
+        <label>
+          Description
+          <textarea id="description" rows="5" placeholder="Common description for every Short..."></textarea>
+        </label>
+
+        <label>
+          Tags (comma separated)
+          <input id="tags" type="text" value="shorts,youtube" />
+        </label>
+
+        <div class="row settings-row">
+          <label>
+            Privacy
+            <select id="privacy">
+              <option value="private" selected>Private</option>
+              <option value="unlisted">Unlisted</option>
+              <option value="public">Public</option>
+            </select>
+          </label>
+          <label>
+            Category ID
+            <input id="category-id" type="text" value="22" />
+          </label>
+        </div>
+
+        <label>
+          Common thumbnail (optional)
+          <input id="thumbnail" type="file" accept="image/jpeg,image/png" />
+        </label>
+
+        <label class="checkbox-row">
+          <input id="made-for-kids" type="checkbox" />
+          <span>Made for kids (select only when this content is actually made for kids)</span>
+        </label>
+
+        <label class="checkbox-row">
+          <input id="auto-upload" type="checkbox" />
+          <span>Automatically upload all generated Shorts to YouTube</span>
+        </label>
+      </details>
+
+      <button id="split-btn" type="submit">Split &amp; Prepare Shorts</button>
     </form>
 
     <div id="status" class="status" hidden></div>
