@@ -1,11 +1,11 @@
 from pathlib import Path
 import asyncio
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from app.config import DEFAULT_CHUNK_SECONDS, MAX_UPLOAD_MB
 from app.models.video import SplitResponse
 from app.services.file_manager import cleanup_file, make_output_directory, save_upload
 from app.services.video_analyzer import probe_video
-from app.services.video_splitter import split_video
+from app.services.video_splitter import OUTPUT_SIZES, split_video
 
 router = APIRouter(prefix="/api/video", tags=["video"])
 
@@ -19,11 +19,17 @@ def _validate_upload_size(path: Path) -> None:
 
 
 @router.post("/split", response_model=SplitResponse)
-async def split_uploaded_video(file: UploadFile = File(...), chunk_seconds: int = DEFAULT_CHUNK_SECONDS):
+async def split_uploaded_video(
+    file: UploadFile = File(...),
+    chunk_seconds: int = DEFAULT_CHUNK_SECONDS,
+    orientation: str = Query("vertical", description="Output format: vertical or horizontal"),
+):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Please choose a video file.")
     if chunk_seconds <= 0 or chunk_seconds > 3600:
         raise HTTPException(status_code=400, detail="chunk_seconds must be between 1 and 3600 seconds.")
+    if orientation not in OUTPUT_SIZES:
+        raise HTTPException(status_code=400, detail="orientation must be 'vertical' or 'horizontal'.")
 
     input_path = None
     try:
@@ -31,7 +37,9 @@ async def split_uploaded_video(file: UploadFile = File(...), chunk_seconds: int 
         _validate_upload_size(input_path)
         info = await asyncio.to_thread(probe_video, input_path)
         output_dir = await asyncio.to_thread(make_output_directory, file.filename)
-        parts = await asyncio.to_thread(split_video, input_path, output_dir, info, chunk_seconds)
+        parts = await asyncio.to_thread(
+            split_video, input_path, output_dir, info, chunk_seconds, orientation
+        )
 
         return SplitResponse(
             source_filename=file.filename,
