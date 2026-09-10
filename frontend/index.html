@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Video Splitter • 3 Minute Parts</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+  <main class="card">
+    <div class="eyebrow">LOCAL VIDEO TOOL</div>
+    <h1>Split a video into 3-minute parts</h1>
+    <p class="subtitle">Upload one video. Every part is numbered in series, with the final clip allowed to be shorter.</p>
+
+    <form id="split-form">
+      <label class="dropzone" for="video-file">
+        <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
+        <span class="drop-title">Choose a video</span>
+        <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
+      </label>
+
+      <div class="row">
+        <label>
+          Part length (seconds)
+          <input id="chunk-seconds" type="number" value="180" min="1" max="3600" />
+        </label>
+        <button id="split-btn" type="submit">Split Video</button>
+      </div>
+    </form>
+
+    <div id="status" class="status" hidden></div>
+    <div id="result" class="result" hidden></div>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
