@@ -1,6 +1,6 @@
 # Video Splitter 3 Min
 
-A local FastAPI + FFmpeg tool that uploads one video and splits the complete video into sequential clips. By default, every clip is **180 seconds (3 minutes)** and the final clip can be shorter.
+A local FastAPI + FFmpeg tool that uploads one video, splits the complete video into sequential clips, and optionally converts every clip to a YouTube-friendly frame size. By default, every clip is **180 seconds (3 minutes)** and the final clip can be shorter.
 
 ## Features
 
@@ -8,6 +8,9 @@ A local FastAPI + FFmpeg tool that uploads one video and splits the complete vid
 - Split the complete source video into sequential parts.
 - Default chunk length: 180 seconds.
 - Custom chunk length is supported from the UI/API.
+- **Vertical output:** `1080 × 1920` (9:16), suitable for YouTube Shorts.
+- **Horizontal output:** `1920 × 1080` (16:9).
+- Resizing preserves the source aspect ratio; excess area is cropped instead of stretching the video.
 - Output names are ordered: `part_001.mp4`, `part_002.mp4`, etc.
 - Each upload gets its own output folder under `output/`.
 - Uses accurate FFmpeg cuts by re-encoding to avoid keyframe-boundary drift.
@@ -44,19 +47,23 @@ Open `http://127.0.0.1:8000`.
 
 ## Output example
 
-For an 8:25 video:
+For an 8:25 video in vertical mode:
 
 ```text
 output/
 └── my_video_ab12cd34/
-    ├── part_001.mp4   # 0:00 - 3:00
-    ├── part_002.mp4   # 3:00 - 6:00
-    └── part_003.mp4   # 6:00 - 8:25
+    ├── part_001.mp4   # 0:00 - 3:00, 1080x1920
+    ├── part_002.mp4   # 3:00 - 6:00, 1080x1920
+    └── part_003.mp4   # 6:00 - 8:25, 1080x1920
 ```
 
 ## API
 
-`POST /api/video/split?chunk_seconds=180` with multipart field `file`.
+`POST /api/video/split?chunk_seconds=180&orientation=vertical` with multipart field `file`.
+
+`orientation` accepts:
+- `vertical` → `1080 × 1920`
+- `horizontal` → `1920 × 1080`
 
 Health check: `GET /api/health`.
 
