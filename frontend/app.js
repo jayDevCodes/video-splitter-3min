@@ -17,24 +17,31 @@ form.addEventListener('submit', async (event) => {
   splitButton.disabled = true;
   resultBox.hidden = true;
   statusBox.hidden = false;
-  statusBox.textContent = 'Uploading and splitting… Large videos can take some time.';
+  statusBox.textContent = 'Uploading, splitting and resizing… Large videos can take some time.';
 
   const formData = new FormData();
   formData.append('file', file);
   const chunkSeconds = Number(document.querySelector('#chunk-seconds').value || 180);
+  const orientation = document.querySelector('#orientation').value;
+  const size = orientation === 'vertical' ? '1080 × 1920 (9:16)' : '1920 × 1080 (16:9)';
 
   try {
-    const response = await fetch(`/api/video/split?chunk_seconds=${encodeURIComponent(chunkSeconds)}`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await fetch(
+      `/api/video/split?chunk_seconds=${encodeURIComponent(chunkSeconds)}&orientation=${encodeURIComponent(orientation)}`,
+      {
+        method: 'POST',
+        body: formData,
+      },
+    );
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Unable to split the video.');
 
-    statusBox.textContent = `Done — ${data.parts_created} part(s) created.`;
+    statusBox.textContent = `Done — ${data.parts_created} part(s) created at ${size}.`;
     resultBox.hidden = false;
     resultBox.innerHTML = `
       <strong>Output folder:</strong> <code>${escapeHtml(data.output_directory)}</code>
+      <br><br>
+      <strong>Format:</strong> ${escapeHtml(size)}
       <br><br>
       <strong>Parts:</strong>
       <ul>${data.parts.map(name => `<li><code>${escapeHtml(name)}</code></li>`).join('')}</ul>
