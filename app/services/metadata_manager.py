@@ -27,27 +27,23 @@ def write_metadata(
     made_for_kids: bool,
     auto_upload: bool,
     gap_seconds: int | None = None,
+    delete_after_upload: bool = True,
 ) -> Path:
     if privacy not in {"private", "unlisted", "public"}:
         raise ValueError("privacy must be private, unlisted, or public")
-
     metadata = {
         "title_template": title_template.strip() or "{filename} #{number}",
         "description": description,
         "tags": tags,
         "thumbnail": thumbnail,
-        "youtube": {
-            "privacy": privacy,
-            "category_id": category_id,
-            "made_for_kids": made_for_kids,
-        },
+        "youtube": {"privacy": privacy, "category_id": category_id, "made_for_kids": made_for_kids},
         "upload": {
             "enabled": True,
             "auto_upload": auto_upload,
             "gap_seconds": 60 if gap_seconds is None else gap_seconds,
+            "delete_after_upload": delete_after_upload,
         },
     }
-
     path = config_dir(output_dir) / METADATA_FILE
     path.write_text(json.dumps(metadata, indent=2, ensure_ascii=False), encoding="utf-8")
     return path
