@@ -10,12 +10,13 @@
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO + YOUTUBE AUTOMATION</div>
     <h1>Split, resize &amp; prepare YouTube Shorts</h1>
-    <p class="subtitle">Create one output folder per video. Its title, description and thumbnail can be shared by every Short, with optional automatic YouTube uploading.</p>
+    <p class="subtitle">Create one output folder per video, apply one publishing profile to every Short, and let the local uploader handle the rest.</p>
 
     <form id="split-form">
       <label class="dropzone" for="video-file">
         <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
-        <span class="drop-title">Choose a video</span>
+        <span class="upload-icon">↑</span>
+        <span class="drop-title">Choose your source video</span>
         <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
       </label>
 
@@ -33,56 +34,126 @@
         </label>
       </div>
 
-      <details class="youtube-settings" open>
-        <summary>YouTube metadata &amp; auto-upload</summary>
-        <p class="muted">These settings are saved once inside this video's output folder and apply to every generated Short.</p>
-
-        <label>
-          Title template
-          <input id="title-template" type="text" value="{filename} #{number}" />
-          <small class="muted">Use <code>{number}</code> for 1, 2, 3... and <code>{filename}</code> for the output folder name.</small>
-        </label>
-
-        <label>
-          Description
-          <textarea id="description" rows="5" placeholder="Common description for every Short..."></textarea>
-        </label>
-
-        <label>
-          Tags (comma separated)
-          <input id="tags" type="text" value="shorts,youtube" />
-        </label>
-
-        <div class="row settings-row">
-          <label>
-            Privacy
-            <select id="privacy">
-              <option value="private" selected>Private</option>
-              <option value="unlisted">Unlisted</option>
-              <option value="public">Public</option>
-            </select>
-          </label>
-          <label>
-            Category ID
-            <input id="category-id" type="text" value="22" />
-          </label>
+      <section class="youtube-panel" aria-labelledby="youtube-heading">
+        <div class="youtube-panel-head">
+          <div>
+            <div class="section-kicker">PUBLISHING PROFILE</div>
+            <h2 id="youtube-heading">YouTube Shorts</h2>
+            <p>Set this once. The same profile is saved with the output folder and applied to every generated Short.</p>
+          </div>
+          <div class="youtube-badge">YT</div>
         </div>
 
-        <label>
-          Common thumbnail (optional)
-          <input id="thumbnail" type="file" accept="image/jpeg,image/png" />
-        </label>
+        <div class="youtube-grid">
+          <section class="setting-card setting-card-wide">
+            <div class="setting-card-title">
+              <span class="step-number">01</span>
+              <div>
+                <strong>Content</strong>
+                <span>Title, description &amp; discovery</span>
+              </div>
+            </div>
 
-        <label class="checkbox-row">
-          <input id="made-for-kids" type="checkbox" />
-          <span>Made for kids (select only when this content is actually made for kids)</span>
-        </label>
+            <label>
+              Title template
+              <input id="title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" />
+              <small>Use <code>{number}</code> for 1, 2, 3... and <code>{filename}</code> for the video folder name.</small>
+            </label>
 
-        <label class="checkbox-row">
-          <input id="auto-upload" type="checkbox" />
-          <span>Automatically upload all generated Shorts to YouTube</span>
-        </label>
-      </details>
+            <label>
+              Description
+              <textarea id="description" rows="6" placeholder="Write one description that will be used for every Short...\n\nAdd your links, CTA and hashtags here."></textarea>
+              <small>One common description is copied to every generated Short.</small>
+            </label>
+
+            <label>
+              Tags
+              <input id="tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral, story" />
+              <small>Separate tags with commas.</small>
+            </label>
+          </section>
+
+          <section class="setting-card">
+            <div class="setting-card-title">
+              <span class="step-number">02</span>
+              <div>
+                <strong>Publishing</strong>
+                <span>Visibility &amp; category</span>
+              </div>
+            </div>
+
+            <label>
+              Visibility
+              <select id="privacy">
+                <option value="private" selected>Private — review first</option>
+                <option value="unlisted">Unlisted — link only</option>
+                <option value="public">Public — publish immediately</option>
+              </select>
+            </label>
+
+            <label>
+              Category ID
+              <input id="category-id" type="text" value="22" placeholder="22" />
+              <small>Default 22 = People &amp; Blogs.</small>
+            </label>
+
+            <label class="file-field">
+              Thumbnail
+              <input id="thumbnail" type="file" accept="image/jpeg,image/png" />
+              <small>Optional. One thumbnail is reused for every Short in this batch.</small>
+            </label>
+
+            <label class="toggle-card">
+              <input id="made-for-kids" type="checkbox" />
+              <span class="toggle-ui"></span>
+              <span class="toggle-copy">
+                <strong>Made for kids</strong>
+                <small>Enable only when the content is actually made for children.</small>
+              </span>
+            </label>
+          </section>
+
+          <section class="setting-card automation-card">
+            <div class="setting-card-title">
+              <span class="step-number">03</span>
+              <div>
+                <strong>Automation</strong>
+                <span>Let the watcher upload for you</span>
+              </div>
+            </div>
+
+            <div class="automation-callout">
+              <div class="status-dot"></div>
+              <div>
+                <strong>Automatic upload</strong>
+                <p>After splitting finishes, the local watcher detects the READY folder and uploads pending Shorts one by one.</p>
+              </div>
+            </div>
+
+            <label class="master-toggle">
+              <input id="auto-upload" type="checkbox" />
+              <span class="toggle-ui"></span>
+              <span class="toggle-copy">
+                <strong>Enable auto-upload</strong>
+                <small>Upload all generated Shorts using the profile above.</small>
+              </span>
+            </label>
+
+            <div class="automation-note">
+              <span>i</span>
+              <p>Your first upload requires Google OAuth. Keep <code>client_secret.json</code> and the generated token local and never commit them to GitHub.</p>
+            </div>
+          </section>
+        </div>
+
+        <div class="profile-footer">
+          <div>
+            <strong>Batch profile</strong>
+            <span>One configuration → all Shorts in this output folder</span>
+          </div>
+          <span class="profile-status">READY TO CONFIGURE</span>
+        </div>
+      </section>
 
       <button id="split-btn" type="submit">Split &amp; Prepare Shorts</button>
     </form>
