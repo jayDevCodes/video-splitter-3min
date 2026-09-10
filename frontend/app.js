@@ -51,15 +51,7 @@ splitForm.addEventListener('submit', async (event) => {
 
     statusBox.textContent = `Generation complete — ${data.parts_created} Short(s) created at ${size}. YouTube upload is now ready as a separate step.`;
     resultBox.hidden = false;
-    resultBox.innerHTML = `
-      <strong>Generation complete</strong>
-      <br><br>
-      <strong>Output folder:</strong> <code>${escapeHtml(data.output_directory)}</code>
-      <br><br>
-      <strong>Generated Shorts:</strong>
-      <ul>${data.parts.map(name => `<li><code>${escapeHtml(name)}</code></li>`).join('')}</ul>
-      <p class="muted">All videos are generated first. Nothing was uploaded to YouTube during this step.</p>
-    `;
+    resultBox.innerHTML = `<strong>Generation complete</strong><br><br><strong>Output folder:</strong> <code>${escapeHtml(data.output_directory)}</code><br><br><strong>Generated Shorts:</strong><ul>${data.parts.map(name => `<li><code>${escapeHtml(name)}</code></li>`).join('')}</ul><p class="muted">All videos are generated first. Nothing was uploaded to YouTube during this step.</p>`;
     uploadSection.hidden = false;
     uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
   } catch (error) {
@@ -89,6 +81,8 @@ youtubeForm.addEventListener('submit', async (event) => {
   formData.append('made_for_kids', document.querySelector('#upload-made-for-kids').checked ? 'true' : 'false');
   formData.append('gap_seconds', document.querySelector('#upload-gap').value || '0');
   formData.append('delete_after_upload', document.querySelector('#delete-after-upload').checked ? 'true' : 'false');
+  const thumbnail = document.querySelector('#upload-thumbnail').files?.[0];
+  if (thumbnail) formData.append('thumbnail', thumbnail);
 
   try {
     const response = await fetch('/api/youtube/upload', { method: 'POST', body: formData });
@@ -102,16 +96,7 @@ youtubeForm.addEventListener('submit', async (event) => {
       : `YouTube queue complete — ${successCount} Short(s) uploaded. Uploaded files were deleted from the folder as configured.`;
 
     uploadResultBox.hidden = false;
-    uploadResultBox.innerHTML = `
-      <strong>YouTube upload report</strong>
-      <br><br>
-      <strong>Order:</strong> Generated order (part_001 → part_002 → …)
-      <br>
-      <strong>Remaining local MP4s:</strong> ${data.remaining_files}
-      <br><br>
-      <ul>${data.results.map(item => `<li><code>${escapeHtml(item.filename)}</code> — <strong>${escapeHtml(item.status)}</strong>${item.url ? ` — <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open</a>` : ''}${item.deleted ? ' — deleted locally' : ''}${item.error ? ` — ${escapeHtml(item.error)}` : ''}</li>`).join('')}</ul>
-      ${data.stopped_on_error ? '<p class="muted">Fix the failed upload and press the button again. Previously uploaded Shorts will not be uploaded twice.</p>' : ''}
-    `;
+    uploadResultBox.innerHTML = `<strong>YouTube upload report</strong><br><br><strong>Order:</strong> Generated order (part_001 → part_002 → …)<br><strong>Remaining local MP4s:</strong> ${data.remaining_files}<br><br><ul>${data.results.map(item => `<li><code>${escapeHtml(item.filename)}</code> — <strong>${escapeHtml(item.status)}</strong>${item.url ? ` — <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open</a>` : ''}${item.deleted ? ' — deleted locally' : ''}${item.error ? ` — ${escapeHtml(item.error)}` : ''}</li>`).join('')}</ul>${data.stopped_on_error ? '<p class="muted">Fix the failed upload and press the button again. Previously uploaded Shorts will not be uploaded twice.</p>' : ''}`;
   } catch (error) {
     statusBox.textContent = error.message;
   } finally {
@@ -121,7 +106,5 @@ youtubeForm.addEventListener('submit', async (event) => {
 });
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, char => ({
-    '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;'
-  }[char]));
+  return String(value).replace(/[&<>'"]/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[char]));
 }
