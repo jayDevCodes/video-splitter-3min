@@ -9,4 +9,8 @@ output/*
 !output/.gitkeep
 temp/*
 !temp/.gitkeep
+credentials/*
+!credentials/.gitkeep
+tokens/*
+!tokens/.gitkeep
 .DS_Store
