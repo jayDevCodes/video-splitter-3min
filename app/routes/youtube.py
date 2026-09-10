@@ -4,7 +4,7 @@ import time
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.config import OUTPUT_DIR
 from app.services.metadata_manager import load_metadata, load_status, render_title, save_status, write_metadata
-from app.services.upload_manager import folder_summary
+from app.services.upload_manager import discover_upload_folders, folder_summary
 from app.services.youtube_auth import get_youtube_service
 
 router = APIRouter(prefix="/api/youtube", tags=["youtube"])
@@ -34,16 +34,7 @@ def _safe_output_dir(output_directory: str) -> Path:
 
 @router.get("/folders")
 def list_upload_folders():
-    if not OUTPUT_DIR.exists():
-        return {"folders": []}
-    folders = []
-    for output_dir in sorted(OUTPUT_DIR.iterdir(), key=lambda item: item.name.lower()):
-        if not output_dir.is_dir() or not (output_dir / "READY").exists():
-            continue
-        summary = folder_summary(output_dir)
-        if summary["remaining"] > 0:
-            folders.append(summary)
-    return {"folders": folders}
+    return {"folders": discover_upload_folders(OUTPUT_DIR)}
 
 
 @router.get("/folder")
