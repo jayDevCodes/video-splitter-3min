@@ -42,7 +42,7 @@ def list_upload_folders():
         if not output_dir.is_dir() or not (output_dir / "READY").exists():
             continue
         summary = folder_summary(output_dir)
-        if summary["remaining"] > 0 or summary["state"] == "not_started":
+        if summary["remaining"] > 0:
             folders.append(summary)
     return {"folders": folders}
 
@@ -61,8 +61,7 @@ def get_upload_folder(output_directory: str):
 @router.get("/prepare")
 def prepare_upload(output_directory: str):
     output_dir = _safe_output_dir(output_directory)
-    summary = folder_summary(output_dir)
-    return summary
+    return folder_summary(output_dir)
 
 
 @router.post("/upload")
@@ -111,6 +110,7 @@ def upload_to_youtube(
         category_id=category_id,
         made_for_kids=made_for_kids,
         auto_upload=False,
+        gap_seconds=gap_seconds,
     )
 
     status = load_status(output_dir)
