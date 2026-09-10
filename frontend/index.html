@@ -10,89 +10,94 @@
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO TOOL</div>
     <h1>Generate Shorts first.</h1>
-    <p class="subtitle">Create all video parts first. Upload new or previously generated Shorts whenever you are ready.</p>
+    <p class="subtitle">Create all video parts first. Upload new or older generated Shorts separately.</p>
 
-    <form id="split-form">
-      <section class="workflow-section generation-section">
-        <div class="workflow-head">
-          <div>
-            <div class="section-kicker">STEP 01 · VIDEO GENERATION</div>
-            <h2>Create all Shorts</h2>
-            <p>Choose a source video, split length and output format. Nothing is uploaded during generation.</p>
-          </div>
-          <span class="workflow-badge">GENERATE</span>
+    <div class="home-actions">
+      <button id="show-generate-btn" class="primary-btn action-btn" type="button">Generate All Shorts</button>
+      <button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button>
+    </div>
+
+    <section id="generation-section" class="workflow-section generation-section">
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">STEP 01 · VIDEO GENERATION</div>
+          <h2>Create all Shorts</h2>
+          <p>Choose a source video, split length and output format. Nothing is uploaded during generation.</p>
         </div>
-
+        <span class="workflow-badge">GENERATE</span>
+      </div>
+      <form id="split-form">
         <label class="dropzone" for="video-file">
           <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
           <span class="upload-icon">↑</span>
           <span class="drop-title">Choose your source video</span>
           <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
         </label>
-
         <div class="row settings-row">
           <label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label>
           <label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option></select></label>
         </div>
+        <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
+      </form>
+    </section>
 
-        <div class="generation-actions">
-          <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
-          <button id="old-upload-btn" class="secondary-btn" type="button">Upload Old Video</button>
+    <section id="old-upload-section" class="workflow-section old-upload-section" hidden>
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">YOUTUBE · OLD VIDEO</div>
+          <h2>Upload an Existing Video Set</h2>
+          <p>Select a folder from your output directory. Saved upload settings will be restored automatically.</p>
         </div>
-      </section>
-    </form>
+        <span class="workflow-badge ready-badge">RESUME</span>
+      </div>
+
+      <form id="old-upload-form">
+        <label class="folder-select-label">
+          Select a folder to continue its YouTube upload queue.
+          <select id="old-folder-select">
+            <option value="">Loading folders…</option>
+          </select>
+          <small id="old-folder-help">Only folders with generated Shorts and pending uploads are shown.</small>
+        </label>
+        <div id="old-folder-empty" class="empty-state" hidden>No folders with pending Shorts were found in the output directory.</div>
+      </form>
+    </section>
 
     <section id="upload-section" class="workflow-section upload-section" hidden>
       <div class="workflow-head">
         <div>
           <div class="section-kicker">YOUTUBE UPLOAD</div>
-          <h2 id="upload-heading">Now Upload to YouTube</h2>
-          <p id="upload-summary">All Shorts are ready. Configure the upload details and continue the queue.</p>
+          <h2>Continue Upload</h2>
+          <p id="upload-summary">Select a folder and configure the upload details.</p>
         </div>
         <span class="workflow-badge ready-badge">READY</span>
       </div>
-
       <div class="queue-strip">
         <div><span class="queue-label">SELECTED FOLDER</span><strong id="output-folder">—</strong></div>
         <div><span class="queue-label">REMAINING</span><strong id="parts-count">0</strong></div>
         <div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div>
       </div>
-
       <form id="youtube-form">
         <input id="upload-output-directory" type="hidden" />
         <div class="upload-form-grid">
           <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small><code>{number}</code> follows the original generation order.</small></label>
-          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>The saved folder gap is loaded automatically.</small></label>
-          <label class="full-width">Description<textarea id="upload-description" rows="7" placeholder="Write the description for every Short...\n\nAdd hashtags, links and CTA here."></textarea></label>
+          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Saved value is restored when available.</small></label>
+          <label class="full-width">Description<textarea id="upload-description" rows="7" placeholder="Write the description for every Short..."></textarea></label>
           <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral" /></label>
-          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png" /><small>Optional. Saved thumbnail is reused when no new file is selected.</small></label>
+          <label>Visibility<select id="upload-privacy"><option value="private">Private — review first</option><option value="unlisted">Unlisted — link only</option><option value="public">Public — publish immediately</option></select></label>
+          <label>Category ID<input id="upload-category-id" type="text" value="22" /></label>
+          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png" /><small id="saved-thumbnail-note">Optional. Saved thumbnail will be reused automatically when available.</small></label>
         </div>
-
-        <details class="advanced-upload">
-          <summary>More YouTube settings</summary>
-          <div class="advanced-upload-grid">
-            <label>Visibility<select id="upload-privacy"><option value="private" selected>Private — review first</option><option value="unlisted">Unlisted — link only</option><option value="public">Public — publish immediately</option></select></label>
-            <label>Category ID<input id="upload-category-id" type="text" value="22" placeholder="22" /></label>
-          </div>
-        </details>
-
+        <label class="upload-toggle-row">
+          <input id="delete-after-upload" type="checkbox" checked />
+          <span class="toggle-ui"></span>
+          <span class="toggle-copy"><strong>Delete local Short after upload</strong><small>Delete the MP4 only after YouTube confirms success.</small></span>
+        </label>
         <div class="upload-actions">
-          <div class="upload-rule"><strong>Resumable queue</strong><span>Already uploaded Shorts are skipped. Successful uploads can delete their local MP4s.</span></div>
+          <div class="upload-rule"><strong>Resume-safe queue</strong><span>Already uploaded Shorts are skipped. Remaining Shorts keep their original order.</span></div>
           <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Continue Upload</button>
         </div>
       </form>
-    </section>
-
-    <section id="pending-section" class="workflow-section pending-section" hidden>
-      <div class="workflow-head">
-        <div>
-          <div class="section-kicker">EXISTING OUTPUT</div>
-          <h2>Upload Old Video</h2>
-          <p>Select a previously generated output folder. Saved title, description, thumbnail and upload gap will be loaded into the form automatically.</p>
-        </div>
-        <span id="pending-count-badge" class="workflow-badge">0 FOLDERS</span>
-      </div>
-      <div id="pending-list" class="pending-list"></div>
     </section>
 
     <div id="status" class="status" hidden></div>
