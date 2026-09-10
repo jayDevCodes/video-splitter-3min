@@ -9,66 +9,82 @@
 <body>
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO + YOUTUBE AUTOMATION</div>
-    <h1>Split, resize &amp; prepare YouTube Shorts</h1>
-    <p class="subtitle">Create one output folder per video, apply one publishing profile to every Short, and let the local uploader handle the rest.</p>
+    <h1>Create first. Upload second.</h1>
+    <p class="subtitle">Generate every Short completely first. When the folder is ready, start a separate YouTube upload queue with its own metadata, upload order and delay.</p>
 
     <form id="split-form">
-      <label class="dropzone" for="video-file">
-        <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
-        <span class="upload-icon">↑</span>
-        <span class="drop-title">Choose your source video</span>
-        <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
-      </label>
-
-      <div class="row settings-row">
-        <label>
-          Part length (seconds)
-          <input id="chunk-seconds" type="number" value="180" min="1" max="3600" />
-        </label>
-        <label>
-          Output format
-          <select id="orientation">
-            <option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option>
-            <option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option>
-          </select>
-        </label>
-      </div>
-
-      <section class="youtube-panel" aria-labelledby="youtube-heading">
-        <div class="youtube-panel-head">
+      <section class="workflow-section generation-section">
+        <div class="workflow-head">
           <div>
-            <div class="section-kicker">PUBLISHING PROFILE</div>
-            <h2 id="youtube-heading">YouTube Shorts</h2>
-            <p>Set this once. The same profile is saved with the output folder and applied to every generated Short.</p>
+            <div class="section-kicker">STEP 01 · GENERATION</div>
+            <h2>Create all Shorts</h2>
+            <p>Nothing is uploaded while the video is being split. Every part is generated first and kept in the output folder.</p>
           </div>
-          <div class="youtube-badge">YT</div>
+          <span class="workflow-badge">CREATE</span>
         </div>
 
-        <div class="youtube-grid">
+        <label class="dropzone" for="video-file">
+          <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
+          <span class="upload-icon">↑</span>
+          <span class="drop-title">Choose your source video</span>
+          <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
+        </label>
+
+        <div class="row settings-row">
+          <label>
+            Part length (seconds)
+            <input id="chunk-seconds" type="number" value="180" min="1" max="3600" />
+          </label>
+          <label>
+            Output format
+            <select id="orientation">
+              <option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option>
+              <option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option>
+            </select>
+          </label>
+        </div>
+
+        <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
+      </section>
+    </form>
+
+    <section id="upload-section" class="workflow-section upload-section" hidden>
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">STEP 02 · YOUTUBE</div>
+          <h2>Now Upload to YouTube</h2>
+          <p id="upload-summary">Your Shorts are ready. Configure the publishing profile below, then start the queue.</p>
+        </div>
+        <span class="workflow-badge ready-badge">READY</span>
+      </div>
+
+      <div class="queue-strip">
+        <div><span class="queue-label">OUTPUT FOLDER</span><strong id="output-folder">—</strong></div>
+        <div><span class="queue-label">SHORTS</span><strong id="parts-count">0</strong></div>
+        <div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div>
+      </div>
+
+      <form id="youtube-form">
+        <input id="upload-output-directory" type="hidden" />
+
+        <div class="youtube-upload-grid">
           <section class="setting-card setting-card-wide">
             <div class="setting-card-title">
               <span class="step-number">01</span>
-              <div>
-                <strong>Content</strong>
-                <span>Title, description &amp; discovery</span>
-              </div>
+              <div><strong>Metadata</strong><span>Applied to every Short</span></div>
             </div>
-
             <label>
               Title template
-              <input id="title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" />
-              <small>Use <code>{number}</code> for 1, 2, 3... and <code>{filename}</code> for the video folder name.</small>
+              <input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" />
+              <small><code>{number}</code> follows generated order. <code>{filename}</code> uses the output folder name.</small>
             </label>
-
             <label>
               Description
-              <textarea id="description" rows="6" placeholder="Write one description that will be used for every Short...\n\nAdd your links, CTA and hashtags here."></textarea>
-              <small>One common description is copied to every generated Short.</small>
+              <textarea id="upload-description" rows="6" placeholder="Write the description for every Short...\n\nAdd links, CTA and hashtags here."></textarea>
             </label>
-
             <label>
               Tags
-              <input id="tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral, story" />
+              <input id="upload-tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral, story" />
               <small>Separate tags with commas.</small>
             </label>
           </section>
@@ -76,90 +92,60 @@
           <section class="setting-card">
             <div class="setting-card-title">
               <span class="step-number">02</span>
-              <div>
-                <strong>Publishing</strong>
-                <span>Visibility &amp; category</span>
-              </div>
+              <div><strong>Publishing</strong><span>Visibility &amp; category</span></div>
             </div>
-
             <label>
               Visibility
-              <select id="privacy">
+              <select id="upload-privacy">
                 <option value="private" selected>Private — review first</option>
                 <option value="unlisted">Unlisted — link only</option>
                 <option value="public">Public — publish immediately</option>
               </select>
             </label>
-
             <label>
               Category ID
-              <input id="category-id" type="text" value="22" placeholder="22" />
+              <input id="upload-category-id" type="text" value="22" placeholder="22" />
               <small>Default 22 = People &amp; Blogs.</small>
             </label>
-
-            <label class="file-field">
-              Thumbnail
-              <input id="thumbnail" type="file" accept="image/jpeg,image/png" />
-              <small>Optional. One thumbnail is reused for every Short in this batch.</small>
-            </label>
-
-            <label class="toggle-card">
-              <input id="made-for-kids" type="checkbox" />
+            <label class="upload-toggle-row">
+              <input id="upload-made-for-kids" type="checkbox" />
               <span class="toggle-ui"></span>
-              <span class="toggle-copy">
-                <strong>Made for kids</strong>
-                <small>Enable only when the content is actually made for children.</small>
-              </span>
+              <span class="toggle-copy"><strong>Made for kids</strong><small>Enable only when appropriate.</small></span>
             </label>
           </section>
 
-          <section class="setting-card automation-card">
+          <section class="setting-card queue-card">
             <div class="setting-card-title">
               <span class="step-number">03</span>
-              <div>
-                <strong>Automation</strong>
-                <span>Let the watcher upload for you</span>
-              </div>
+              <div><strong>Queue control</strong><span>Order, delay &amp; cleanup</span></div>
             </div>
-
-            <div class="automation-callout">
-              <div class="status-dot"></div>
-              <div>
-                <strong>Automatic upload</strong>
-                <p>After splitting finishes, the local watcher detects the READY folder and uploads pending Shorts one by one.</p>
-              </div>
+            <div class="order-lock">
+              <span class="order-icon">01</span>
+              <div><strong>Fixed upload order</strong><small>Always uploads part_001, part_002, part_003… in generation order.</small></div>
             </div>
-
-            <label class="master-toggle">
-              <input id="auto-upload" type="checkbox" />
-              <span class="toggle-ui"></span>
-              <span class="toggle-copy">
-                <strong>Enable auto-upload</strong>
-                <small>Upload all generated Shorts using the profile above.</small>
-              </span>
+            <label>
+              Gap between uploads (seconds)
+              <input id="upload-gap" type="number" value="60" min="0" max="86400" />
+              <small>After one successful upload, wait this many seconds before starting the next.</small>
             </label>
-
-            <div class="automation-note">
-              <span>i</span>
-              <p>Your first upload requires Google OAuth. Keep <code>client_secret.json</code> and the generated token local and never commit them to GitHub.</p>
-            </div>
+            <label class="upload-toggle-row danger-toggle">
+              <input id="delete-after-upload" type="checkbox" checked />
+              <span class="toggle-ui"></span>
+              <span class="toggle-copy"><strong>Delete Short after successful upload</strong><small>The local MP4 is removed immediately after YouTube confirms the upload.</small></span>
+            </label>
           </section>
         </div>
 
-        <div class="profile-footer">
-          <div>
-            <strong>Batch profile</strong>
-            <span>One configuration → all Shorts in this output folder</span>
-          </div>
-          <span class="profile-status">READY TO CONFIGURE</span>
+        <div class="upload-actions">
+          <div class="oauth-note"><strong>Google OAuth</strong><span>The first upload opens Google authorization. Credentials stay local.</span></div>
+          <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Now Upload to YouTube</button>
         </div>
-      </section>
-
-      <button id="split-btn" type="submit">Split &amp; Prepare Shorts</button>
-    </form>
+      </form>
+    </section>
 
     <div id="status" class="status" hidden></div>
     <div id="result" class="result" hidden></div>
+    <div id="upload-result" class="result" hidden></div>
   </main>
 
   <script src="/static/app.js"></script>
