@@ -3,7 +3,8 @@ import re
 import time
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.config import OUTPUT_DIR
-from app.services.metadata_manager import load_status, render_title, save_status, write_metadata
+from app.services.metadata_manager import load_metadata, load_status, render_title, save_status, write_metadata
+from app.services.upload_manager import folder_summary
 from app.services.youtube_auth import get_youtube_service
 
 router = APIRouter(prefix="/api/youtube", tags=["youtube"])
@@ -31,20 +32,37 @@ def _safe_output_dir(output_directory: str) -> Path:
     return candidate
 
 
+@router.get("/folders")
+def list_upload_folders():
+    if not OUTPUT_DIR.exists():
+        return {"folders": []}
+
+    folders = []
+    for output_dir in sorted(OUTPUT_DIR.iterdir(), key=lambda item: item.name.lower()):
+        if not output_dir.is_dir() or not (output_dir / "READY").exists():
+            continue
+        summary = folder_summary(output_dir)
+        if summary["remaining"] > 0 or summary["state"] == "not_started":
+            folders.append(summary)
+    return {"folders": folders}
+
+
+@router.get("/folder")
+def get_upload_folder(output_directory: str):
+    output_dir = _safe_output_dir(output_directory)
+    summary = folder_summary(output_dir)
+    try:
+        metadata = load_metadata(output_dir)
+    except FileNotFoundError:
+        metadata = {}
+    return {**summary, "metadata": metadata}
+
+
 @router.get("/prepare")
 def prepare_upload(output_directory: str):
     output_dir = _safe_output_dir(output_directory)
-    videos = sorted(output_dir.glob("part_*.mp4"), key=_part_number)
-    status = load_status(output_dir)
-    uploaded_names = {name for name, item in status.get("files", {}).items() if item.get("status") == "uploaded"}
-    pending = [p for p in videos if p.name not in uploaded_names]
-    return {
-        "output_directory": output_directory,
-        "ready": (output_dir / "READY").exists(),
-        "total_videos": len(videos),
-        "remaining": len(pending),
-        "order": [p.name for p in pending],
-    }
+    summary = folder_summary(output_dir)
+    return summary
 
 
 @router.post("/upload")
