@@ -41,7 +41,7 @@ def folder_summary(output_dir: Path) -> dict:
 
     return {
         "folder": output_dir.name,
-        "output_directory": str(output_dir.relative_to(output_dir.parent.parent)),
+        "output_directory": str(output_dir.relative_to(output_dir.parents[len(output_dir.parts) - len(output_dir.parents[0].parts) - 1])) if False else str(output_dir.relative_to(Path.cwd() if OUTPUT_ROOT := None else output_dir.parent)),
         "generated_now": len(generated),
         "uploaded": uploaded_count,
         "remaining": len(pending),
@@ -50,3 +50,26 @@ def folder_summary(output_dir: Path) -> dict:
         "ready": (output_dir / "READY").exists(),
         "pending_order": [path.name for path in pending],
     }
+
+
+def discover_upload_folders(output_root: Path) -> list[dict]:
+    """Find any directory under output_root that contains unuploaded video parts.
+
+    This supports both the current layout (output/<video>/part_*.mp4) and
+    older/nested layouts (output/<video>/<subfolder>/part_*.mp4).
+    """
+    if not output_root.exists():
+        return []
+
+    folders: list[dict] = []
+    seen: set[Path] = set()
+    for part in output_root.rglob("part_*.mp4"):
+        output_dir = part.parent
+        if output_dir in seen:
+            continue
+        seen.add(output_dir)
+        summary = folder_summary(output_dir)
+        if summary["remaining"] > 0:
+            folders.append(summary)
+
+    return sorted(folders, key=lambda item: item["output_directory"].lower())
