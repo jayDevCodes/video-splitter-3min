@@ -2,15 +2,14 @@
   color-scheme: dark;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   --bg: #08090c;
-  --panel: rgba(20, 22, 28, 0.88);
+  --panel: rgba(20, 22, 28, 0.9);
   --panel-soft: rgba(255, 255, 255, 0.035);
   --border: rgba(255, 255, 255, 0.1);
-  --border-strong: rgba(255, 255, 255, 0.18);
+  --border-soft: rgba(255, 255, 255, 0.07);
   --text: #f7f7f8;
   --muted: #9699a3;
   --accent: #7c5cff;
-  --accent-2: #9b87ff;
-  --danger: #ff6b7a;
+  --accent-2: #a18fff;
 }
 
 * { box-sizing: border-box; }
@@ -39,7 +38,7 @@ body::before {
 
 .card {
   position: relative;
-  width: min(820px, 100%);
+  width: min(900px, 100%);
   margin: 0 auto;
   padding: 38px;
   border: 1px solid var(--border);
@@ -80,7 +79,7 @@ h1 {
 }
 
 .subtitle {
-  max-width: 680px;
+  max-width: 700px;
   margin: 18px 0 30px;
   color: var(--muted);
   line-height: 1.7;
@@ -94,7 +93,7 @@ h1 {
   display: grid;
   place-items: center;
   align-content: center;
-  gap: 9px;
+  gap: 8px;
   text-align: center;
   padding: 28px;
   cursor: pointer;
@@ -111,6 +110,19 @@ h1 {
 }
 
 .dropzone input { display: none; }
+.upload-icon {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin-bottom: 4px;
+  border: 1px solid rgba(124,92,255,.3);
+  border-radius: 14px;
+  background: rgba(124,92,255,.1);
+  color: #c9c1ff;
+  font-size: 25px;
+  font-weight: 700;
+}
 .drop-title { font-size: 21px; font-weight: 800; letter-spacing: -.02em; }
 .muted { color: var(--muted); }
 
@@ -160,57 +172,117 @@ select:focus {
 
 select { cursor: pointer; }
 
-/* YouTube metadata panel */
-.youtube-settings {
-  margin-top: 24px;
-  border: 1px solid rgba(124,92,255,.16);
-  border-radius: 20px;
-  padding: 0 22px 22px;
-  background: linear-gradient(145deg, rgba(124,92,255,.055), rgba(255,255,255,.025));
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.025);
+/* YouTube publishing workspace */
+.youtube-panel {
+  margin-top: 28px;
+  overflow: hidden;
+  border: 1px solid rgba(124,92,255,.2);
+  border-radius: 24px;
+  background:
+    linear-gradient(145deg, rgba(124,92,255,.075), rgba(255,255,255,.025) 45%, rgba(255,255,255,.018));
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.035), 0 18px 50px rgba(0,0,0,.16);
 }
 
-.youtube-settings summary {
-  margin: 0 -22px 22px;
-  padding: 18px 22px;
-  color: #fff;
-  font-weight: 800;
-  cursor: pointer;
-  list-style: none;
-  border-bottom: 1px solid rgba(255,255,255,.07);
-  background: rgba(255,255,255,.018);
-  border-radius: 20px 20px 0 0;
+.youtube-panel-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 26px 26px 24px;
+  border-bottom: 1px solid var(--border-soft);
 }
 
-.youtube-settings summary::-webkit-details-marker { display: none; }
-.youtube-settings summary::after { content: "+"; float: right; color: var(--muted); font-size: 20px; line-height: 1; }
-.youtube-settings[open] summary::after { content: "−"; }
+.section-kicker {
+  margin-bottom: 7px;
+  color: #a99dff;
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .16em;
+}
 
-.youtube-settings > p {
-  margin: 0 0 24px;
-  padding: 11px 13px;
-  border-left: 2px solid rgba(124,92,255,.65);
-  border-radius: 0 9px 9px 0;
-  background: rgba(124,92,255,.055);
+.youtube-panel h2 {
+  margin: 0;
+  font-size: 26px;
+  letter-spacing: -.03em;
+}
+
+.youtube-panel-head p {
+  max-width: 630px;
+  margin: 7px 0 0;
+  color: var(--muted);
   font-size: 13px;
   line-height: 1.55;
 }
 
-/* Give every metadata field clear breathing room */
-.youtube-settings > label,
-.youtube-settings > .row {
+.youtube-badge {
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 32px;
+  border-radius: 9px;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.1);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .04em;
+}
+
+.youtube-grid {
+  display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap: 14px;
+  padding: 18px;
+}
+
+.setting-card {
+  padding: 21px;
+  border: 1px solid var(--border-soft);
+  border-radius: 18px;
+  background: rgba(7,8,11,.42);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.02);
+}
+
+.setting-card-wide { grid-row: span 2; }
+
+.setting-card-title {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   margin-bottom: 22px;
 }
 
-.youtube-settings > label:last-of-type { margin-bottom: 0; }
-.youtube-settings > .row { gap: 18px; }
-.youtube-settings small {
+.setting-card-title strong,
+.setting-card-title span:not(.step-number) {
   display: block;
-  margin-top: 9px;
+}
+
+.setting-card-title strong { font-size: 15px; }
+.setting-card-title div > span { margin-top: 3px; color: var(--muted); font-size: 11px; font-weight: 500; }
+
+.step-number {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(124,92,255,.25);
+  border-radius: 10px;
+  background: rgba(124,92,255,.09);
+  color: #bdb3ff;
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.setting-card label + label { margin-top: 21px; }
+.setting-card small {
+  display: block;
+  margin-top: 8px;
+  color: #858894;
   font-size: 11px;
   line-height: 1.5;
   font-weight: 500;
-  color: #858894;
 }
 
 code {
@@ -220,34 +292,141 @@ code {
   color: #c8c0ff;
 }
 
-.checkbox-row {
+.file-field { margin-top: 21px; }
+
+.toggle-card,
+.master-toggle {
+  position: relative;
   display: flex !important;
-  align-items: flex-start;
-  gap: 11px;
-  margin-top: 12px !important;
-  margin-bottom: 12px !important;
-  padding: 14px 15px;
-  border: 1px solid rgba(255,255,255,.07);
-  border-radius: 13px;
+  align-items: center;
+  gap: 12px;
+  margin-top: 21px;
+  padding: 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: 14px;
   background: rgba(255,255,255,.025);
-  font-weight: 600 !important;
-  line-height: 1.45;
   cursor: pointer;
   transition: border-color .2s ease, background .2s ease, transform .2s ease;
 }
 
-.checkbox-row:hover {
-  border-color: rgba(124,92,255,.28);
+.toggle-card:hover,
+.master-toggle:hover {
+  border-color: rgba(124,92,255,.3);
   background: rgba(124,92,255,.055);
   transform: translateY(-1px);
 }
 
-.checkbox-row input {
+.toggle-card input,
+.master-toggle input { position: absolute; opacity: 0; pointer-events: none; }
+
+.toggle-ui {
+  position: relative;
+  width: 40px;
+  height: 23px;
+  flex: 0 0 auto;
+  border-radius: 999px;
+  background: #30323b;
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.08);
+  transition: background .2s ease;
+}
+
+.toggle-ui::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
   width: 17px;
   height: 17px;
-  margin: 1px 0 0;
-  accent-color: var(--accent);
+  border-radius: 50%;
+  background: #d5d6dc;
+  transition: transform .2s ease;
+}
+
+.toggle-card input:checked + .toggle-ui,
+.master-toggle input:checked + .toggle-ui { background: var(--accent); }
+.toggle-card input:checked + .toggle-ui::after,
+.master-toggle input:checked + .toggle-ui::after { transform: translateX(17px); background: #fff; }
+
+.toggle-copy { min-width: 0; }
+.toggle-copy strong { display: block; color: #ededf1; font-size: 12px; }
+.toggle-copy small { margin-top: 3px; }
+
+.automation-card { display: flex; flex-direction: column; }
+
+.automation-callout {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid rgba(124,92,255,.18);
+  border-radius: 14px;
+  background: rgba(124,92,255,.055);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  margin-top: 5px;
   flex: 0 0 auto;
+  border-radius: 50%;
+  background: #8dffba;
+  box-shadow: 0 0 12px rgba(141,255,186,.65);
+}
+
+.automation-callout strong { font-size: 12px; }
+.automation-callout p { margin: 5px 0 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
+
+.master-toggle { margin-top: 14px; }
+
+.automation-note {
+  display: flex;
+  gap: 9px;
+  align-items: flex-start;
+  margin-top: auto;
+  padding-top: 18px;
+  color: #81848e;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.automation-note > span {
+  display: grid;
+  place-items: center;
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 50%;
+  color: #a5a7b0;
+  font-size: 10px;
+}
+
+.automation-note p { margin: 0; }
+
+.profile-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 17px 26px;
+  border-top: 1px solid var(--border-soft);
+  background: rgba(0,0,0,.12);
+}
+
+.profile-footer strong,
+.profile-footer span { display: block; }
+.profile-footer strong { font-size: 11px; }
+.profile-footer div > span { margin-top: 3px; color: var(--muted); font-size: 10px; }
+
+.profile-status {
+  padding: 6px 9px;
+  border: 1px solid rgba(141,255,186,.16);
+  border-radius: 999px;
+  background: rgba(141,255,186,.045);
+  color: #9ce9b9;
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: .08em;
+  white-space: nowrap;
 }
 
 button {
@@ -283,12 +462,19 @@ button:disabled { opacity: .55; cursor: wait; box-shadow: none; }
 .result code { color: #ddd; overflow-wrap: anywhere; }
 .result ul { margin-bottom: 0; padding-left: 22px; }
 
+@media (max-width: 760px) {
+  .youtube-grid { grid-template-columns: 1fr; }
+  .setting-card-wide { grid-row: auto; }
+}
+
 @media (max-width: 620px) {
   body { padding: 20px 12px; }
   .card { padding: 24px 18px; border-radius: 22px; }
   .row { grid-template-columns: 1fr; gap: 12px; }
-  .youtube-settings { padding: 0 16px 18px; }
-  .youtube-settings summary { margin-left: -16px; margin-right: -16px; padding-left: 16px; padding-right: 16px; }
+  .youtube-panel-head { padding: 21px 18px; }
+  .youtube-grid { padding: 12px; }
+  .setting-card { padding: 17px; }
+  .profile-footer { align-items: flex-start; flex-direction: column; padding: 16px 18px; }
   h1 { font-size: 34px; }
   .dropzone { min-height: 160px; }
 }
