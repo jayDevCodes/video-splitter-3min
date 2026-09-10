@@ -1,6 +1,5 @@
 const splitForm = document.querySelector('#split-form');
 const youtubeForm = document.querySelector('#youtube-form');
-const showGenerateBtn = document.querySelector('#show-generate-btn');
 const showOldUploadBtn = document.querySelector('#show-old-upload-btn');
 const generationSection = document.querySelector('#generation-section');
 const oldUploadSection = document.querySelector('#old-upload-section');
@@ -34,13 +33,6 @@ fileInput?.addEventListener('change', () => {
   fileName.textContent = fileInput.files?.[0]?.name || 'MP4, MOV, MKV, AVI, WEBM and more';
 });
 
-showGenerateBtn?.addEventListener('click', () => {
-  generationSection.hidden = false;
-  oldUploadSection.hidden = true;
-  uploadSection.hidden = true;
-  generationSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-});
-
 showOldUploadBtn?.addEventListener('click', async () => {
   generationSection.hidden = true;
   uploadSection.hidden = true;
@@ -51,7 +43,7 @@ showOldUploadBtn?.addEventListener('click', async () => {
     const folders = await loadOldFolders();
     oldUploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     statusBox.textContent = folders.length
-      ? 'Select a folder to continue its YouTube upload queue.'
+      ? 'Select a folder. Its upload settings will open automatically.'
       : 'No output folders with pending Shorts are available.';
   } catch (error) {
     statusBox.textContent = error.message;
@@ -188,7 +180,6 @@ function renderOldFolders(folders) {
 
   oldFolderEmpty.hidden = folders.length > 0;
   if (!folders.length) {
-    oldFolderEmpty.textContent = 'No output folders with pending Shorts were found.';
     uploadSection.hidden = true;
     return;
   }
@@ -196,7 +187,7 @@ function renderOldFolders(folders) {
   for (const folder of folders) {
     const option = document.createElement('option');
     option.value = folder.output_directory;
-    option.textContent = `${folder.folder} — ${folder.remaining} remaining · ${folder.uploaded} uploaded`;
+    option.textContent = `${folder.folder} — ${folder.remaining} remaining`;
     oldFolderSelect.appendChild(option);
   }
 }
@@ -268,5 +259,5 @@ window.addEventListener('DOMContentLoaded', () => {
 });
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>'"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  return String(value).replace(/[&<>'\"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
