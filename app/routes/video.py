@@ -1,11 +1,10 @@
 from pathlib import Path
 import asyncio
-import json
-from fastapi import APIRouter, File, Form, HTTPException, Query, UploadFile
-from app.config import DEFAULT_CHUNK_SECONDS, MAX_UPLOAD_MB
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from app.config import DEFAULT_CHUNK_SECONDS, MAX_UPLOAD_MB, OUTPUT_DIR
 from app.models.video import SplitResponse
 from app.services.file_manager import cleanup_file, make_output_directory, save_upload
-from app.services.metadata_manager import mark_ready, write_metadata
+from app.services.metadata_manager import is_ready, mark_ready
 from app.services.video_analyzer import probe_video
 from app.services.video_splitter import OUTPUT_SIZES, split_video
 
@@ -20,19 +19,22 @@ def _validate_upload_size(path: Path) -> None:
         raise HTTPException(status_code=413, detail=f"Video exceeds the {MAX_UPLOAD_MB} MB upload limit.")
 
 
+def _safe_output_dir(output_directory: str) -> Path:
+    raw = Path(output_directory)
+    candidate = (OUTPUT_DIR / raw).resolve() if not raw.is_absolute() else raw.resolve()
+    root = OUTPUT_DIR.resolve()
+    if candidate != root and root not in candidate.parents:
+        raise HTTPException(status_code=400, detail="Invalid output directory.")
+    if not candidate.is_dir():
+        raise HTTPException(status_code=404, detail="Output folder not found.")
+    return candidate
+
+
 @router.post("/split", response_model=SplitResponse)
 async def split_uploaded_video(
     file: UploadFile = File(...),
     chunk_seconds: int = DEFAULT_CHUNK_SECONDS,
     orientation: str = Query("vertical", description="Output format: vertical or horizontal"),
-    title_template: str = Form("{filename} #{number}"),
-    description: str = Form(""),
-    tags: str = Form("shorts,youtube"),
-    privacy: str = Form("private"),
-    category_id: str = Form("22"),
-    made_for_kids: bool = Form(False),
-    auto_upload: bool = Form(False),
-    thumbnail: UploadFile | None = File(None),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Please choose a video file.")
@@ -40,11 +42,8 @@ async def split_uploaded_video(
         raise HTTPException(status_code=400, detail="chunk_seconds must be between 1 and 3600 seconds.")
     if orientation not in OUTPUT_SIZES:
         raise HTTPException(status_code=400, detail="orientation must be 'vertical' or 'horizontal'.")
-    if privacy not in {"private", "unlisted", "public"}:
-        raise HTTPException(status_code=400, detail="privacy must be private, unlisted, or public.")
 
     input_path = None
-    thumbnail_path = None
     try:
         input_path = await asyncio.to_thread(save_upload, file, file.filename)
         _validate_upload_size(input_path)
@@ -52,30 +51,6 @@ async def split_uploaded_video(
         output_dir = await asyncio.to_thread(make_output_directory, file.filename)
         parts = await asyncio.to_thread(
             split_video, input_path, output_dir, info, chunk_seconds, orientation
-        )
-
-        thumbnail_name = None
-        if thumbnail and thumbnail.filename:
-            suffix = Path(thumbnail.filename).suffix.lower()
-            if suffix not in {".jpg", ".jpeg", ".png"}:
-                raise HTTPException(status_code=400, detail="Thumbnail must be JPG, JPEG, or PNG.")
-            thumbnail_name = f"thumbnail{suffix}"
-            thumbnail_path = output_dir / thumbnail_name
-            with thumbnail_path.open("wb") as target:
-                await asyncio.to_thread(__import__("shutil").copyfileobj, thumbnail.file, target)
-
-        tag_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
-        await asyncio.to_thread(
-            write_metadata,
-            output_dir,
-            title_template=title_template,
-            description=description,
-            tags=tag_list,
-            thumbnail=thumbnail_name,
-            privacy=privacy,
-            category_id=category_id,
-            made_for_kids=made_for_kids,
-            auto_upload=auto_upload,
         )
         await asyncio.to_thread(mark_ready, output_dir)
 
@@ -94,3 +69,15 @@ async def split_uploaded_video(
     finally:
         if input_path:
             cleanup_file(input_path)
+
+
+@router.get("/status")
+def generation_status(output_directory: str):
+    output_dir = _safe_output_dir(output_directory)
+    parts = sorted(output_dir.glob("part_*.mp4"))
+    return {
+        "ready": is_ready(output_dir),
+        "output_directory": output_directory,
+        "parts_created": len(parts),
+        "parts": [p.name for p in parts],
+    }
