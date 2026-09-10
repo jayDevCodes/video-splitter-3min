@@ -1,7 +1,7 @@
 from pathlib import Path
 import re
 import time
-from fastapi import APIRouter, Form, HTTPException
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.config import OUTPUT_DIR
 from app.services.metadata_manager import load_status, render_title, save_status, write_metadata
 from app.services.youtube_auth import get_youtube_service
@@ -58,6 +58,7 @@ def upload_to_youtube(
     made_for_kids: bool = Form(False),
     gap_seconds: int = Form(60),
     delete_after_upload: bool = Form(True),
+    thumbnail: UploadFile | None = File(None),
 ):
     if privacy not in {"private", "unlisted", "public"}:
         raise HTTPException(status_code=400, detail="privacy must be private, unlisted, or public.")
@@ -69,13 +70,25 @@ def upload_to_youtube(
     if not videos:
         raise HTTPException(status_code=400, detail="No generated Shorts found in this folder.")
 
+    thumbnail_name = None
+    thumbnail_path = None
+    if thumbnail and thumbnail.filename:
+        suffix = Path(thumbnail.filename).suffix.lower()
+        if suffix not in {".jpg", ".jpeg", ".png"}:
+            raise HTTPException(status_code=400, detail="Thumbnail must be JPG, JPEG, or PNG.")
+        thumbnail_name = f"thumbnail{suffix}"
+        thumbnail_path = output_dir / thumbnail_name
+        with thumbnail_path.open("wb") as target:
+            import shutil
+            shutil.copyfileobj(thumbnail.file, target)
+
     tags_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
     metadata_path = write_metadata(
         output_dir,
         title_template=title_template,
         description=description,
         tags=tags_list,
-        thumbnail=None,
+        thumbnail=thumbnail_name,
         privacy=privacy,
         category_id=category_id,
         made_for_kids=made_for_kids,
@@ -119,6 +132,12 @@ def upload_to_youtube(
                 _, response = request.next_chunk()
 
             video_id = response["id"]
+            if thumbnail_path and thumbnail_path.exists():
+                service.thumbnails().set(
+                    videoId=video_id,
+                    media_body=MediaFileUpload(str(thumbnail_path)),
+                ).execute()
+
             item = {"status": "uploaded", "video_id": video_id, "url": f"https://youtu.be/{video_id}", "deleted": False}
             if delete_after_upload and video_path.exists():
                 video_path.unlink()
