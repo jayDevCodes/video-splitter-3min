@@ -12,11 +12,6 @@
     <h1>Generate Shorts first.</h1>
     <p class="subtitle">Create all video parts first. Upload new or older generated Shorts separately.</p>
 
-    <div class="home-actions">
-      <button id="show-generate-btn" class="primary-btn action-btn" type="button">Generate All Shorts</button>
-      <button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button>
-    </div>
-
     <section id="generation-section" class="workflow-section generation-section">
       <div class="workflow-head">
         <div>
@@ -41,26 +36,28 @@
       </form>
     </section>
 
+    <div class="upload-old-action">
+      <button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button>
+    </div>
+
     <section id="old-upload-section" class="workflow-section old-upload-section" hidden>
       <div class="workflow-head">
         <div>
           <div class="section-kicker">YOUTUBE · OLD VIDEO</div>
           <h2>Upload an Existing Video Set</h2>
-          <p>Select a folder from your output directory. Saved upload settings will be restored automatically.</p>
+          <p>Select the existing output folder. Its saved YouTube settings will be restored automatically.</p>
         </div>
         <span class="workflow-badge ready-badge">RESUME</span>
       </div>
 
-      <form id="old-upload-form">
-        <label class="folder-select-label">
-          Select a folder to continue its YouTube upload queue.
-          <select id="old-folder-select">
-            <option value="">Loading folders…</option>
-          </select>
-          <small id="old-folder-help">Only folders with generated Shorts and pending uploads are shown.</small>
-        </label>
-        <div id="old-folder-empty" class="empty-state" hidden>No folders with pending Shorts were found in the output directory.</div>
-      </form>
+      <div class="folder-picker">
+        <label for="old-folder-select">Select output folder</label>
+        <select id="old-folder-select">
+          <option value="">Loading folders…</option>
+        </select>
+        <small id="old-folder-help">Choose one folder and its upload settings will open automatically.</small>
+        <div id="old-folder-empty" class="empty-state" hidden>No output folders with pending Shorts were found.</div>
+      </div>
     </section>
 
     <section id="upload-section" class="workflow-section upload-section" hidden>
