@@ -21,8 +21,13 @@ def _validate_upload_size(path: Path) -> None:
 
 def _safe_output_dir(output_directory: str) -> Path:
     raw = Path(output_directory)
-    candidate = (OUTPUT_DIR / raw).resolve() if not raw.is_absolute() else raw.resolve()
     root = OUTPUT_DIR.resolve()
+    if raw.is_absolute():
+        candidate = raw.resolve()
+    elif raw.parts and raw.parts[0] == OUTPUT_DIR.name:
+        candidate = (OUTPUT_DIR.parent / raw).resolve()
+    else:
+        candidate = (OUTPUT_DIR / raw).resolve()
     if candidate != root and root not in candidate.parents:
         raise HTTPException(status_code=400, detail="Invalid output directory.")
     if not candidate.is_dir():
@@ -56,7 +61,7 @@ async def split_uploaded_video(
 
         return SplitResponse(
             source_filename=file.filename,
-            output_directory=str(output_dir.relative_to(output_dir.parents[1])),
+            output_directory=str(output_dir.relative_to(OUTPUT_DIR.parent)),
             total_duration=info.duration,
             chunk_seconds=chunk_seconds,
             parts_created=len(parts),
