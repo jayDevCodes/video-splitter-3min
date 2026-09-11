@@ -53,6 +53,10 @@ class JobManager:
             job["updated_at"] = event_data["timestamp"]
             if "status" in event_data:
                 job["status"] = event_data["status"]
+            if "result" in event_data:
+                job["result"] = deepcopy(event_data["result"])
+            if "error" in event_data:
+                job["error"] = event_data["error"]
             return deepcopy(event_data)
 
     def update(self, job_id: str, status: str | None = None, **data: Any) -> dict[str, Any]:
