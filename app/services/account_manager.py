@@ -7,16 +7,38 @@ from typing import Any
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 ACCOUNTS_DIR = BASE_DIR / "tokens"
 ACCOUNTS_FILE = ACCOUNTS_DIR / "accounts.json"
-
-DEFAULT_ACCOUNTS: list[dict[str, Any]] = [
-    {"id": "yt_default", "platform": "youtube", "type": "channel", "name": "YouTube (connected account)", "enabled": True, "configured": True, "token_file": str(ACCOUNTS_DIR / "token.json")},
-]
+LEGACY_YOUTUBE_ID = "yt_default"
 
 
 def _ensure_file() -> None:
     ACCOUNTS_DIR.mkdir(parents=True, exist_ok=True)
     if not ACCOUNTS_FILE.exists():
-        ACCOUNTS_FILE.write_text(json.dumps({"accounts": DEFAULT_ACCOUNTS}, indent=2), encoding="utf-8")
+        ACCOUNTS_FILE.write_text(json.dumps({"accounts": []}, indent=2), encoding="utf-8")
+
+
+def ensure_legacy_youtube_account() -> dict[str, Any] | None:
+    """Bootstrap the old single YouTube token account only at app startup."""
+    _ensure_file()
+    accounts = list_accounts()
+    for account in accounts:
+        if account.get("id") == LEGACY_YOUTUBE_ID:
+            return account
+    token_file = ACCOUNTS_DIR / "token.json"
+    if not token_file.exists():
+        return None
+    account = {
+        "id": LEGACY_YOUTUBE_ID,
+        "platform": "youtube",
+        "type": "channel",
+        "name": "YouTube (connected account)",
+        "enabled": True,
+        "configured": True,
+        "token_file": str(token_file),
+        "legacy": True,
+    }
+    accounts.append(account)
+    save_accounts(accounts)
+    return account
 
 
 def list_accounts() -> list[dict[str, Any]]:
