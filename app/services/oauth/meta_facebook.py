@@ -26,6 +26,9 @@ _GRAPH_BASE = "https://graph.facebook.com"
 _DIALOG_BASE = "https://www.facebook.com"
 _ID_RE = re.compile(r"[^a-zA-Z0-9_-]+")
 
+# Compatibility/test-isolation alias. Account records are persisted by account_manager.
+ACCOUNTS_DIR = TOKENS_DIR
+
 
 @dataclass
 class FacebookOAuthFlow:
