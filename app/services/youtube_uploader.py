@@ -5,6 +5,7 @@ import time
 from pathlib import Path
 
 from app.services.metadata_manager import load_metadata, load_status, render_title, save_status
+from app.services.thumbnail_manager import prepare_thumbnail
 from app.services.youtube_auth import get_youtube_service
 
 VIDEO_RE = re.compile(r"part_(\d+)\.mp4$", re.IGNORECASE)
@@ -33,12 +34,22 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
     snippet = metadata.get("youtube", {})
     thumbnail_name = metadata.get("thumbnail")
     thumbnail_path = output_dir / thumbnail_name if thumbnail_name else None
+    if thumbnail_path and thumbnail_path.exists():
+        try:
+            _, thumbnail_path = prepare_thumbnail(thumbnail_path, output_dir)
+        except Exception:
+            thumbnail_path = None
+
     gap_seconds = max(0, int(upload_config.get("gap_seconds", 60) or 0))
     delete_after_upload = bool(upload_config.get("delete_after_upload", True))
+    last_upload_finished = None
 
-    for index, video_path in enumerate(pending):
-        if index > 0 and gap_seconds:
-            time.sleep(gap_seconds)
+    for video_path in pending:
+        if last_upload_finished is not None and gap_seconds:
+            elapsed = time.monotonic() - last_upload_finished
+            remaining_gap = max(0.0, gap_seconds - elapsed)
+            if remaining_gap:
+                time.sleep(remaining_gap)
 
         number = _part_number(video_path)
         title = render_title(
@@ -72,17 +83,28 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
                 _, response = request.next_chunk()
 
             video_id = response["id"]
+            thumbnail_status = "not_requested"
             if thumbnail_path and thumbnail_path.exists():
-                service.thumbnails().set(
-                    videoId=video_id,
-                    media_body=MediaFileUpload(str(thumbnail_path)),
-                ).execute()
+                for attempt in range(4):
+                    try:
+                        service.thumbnails().set(
+                            videoId=video_id,
+                            media_body=MediaFileUpload(str(thumbnail_path), mimetype="image/jpeg"),
+                        ).execute()
+                        thumbnail_status = "uploaded"
+                        break
+                    except Exception:
+                        if attempt < 3:
+                            time.sleep(5 * (attempt + 1))
+                if thumbnail_status != "uploaded":
+                    thumbnail_status = "failed"
 
             item = {
                 "status": "uploaded",
                 "video_id": video_id,
                 "url": f"https://youtu.be/{video_id}",
                 "deleted": False,
+                "thumbnail_status": thumbnail_status,
             }
             if delete_after_upload and video_path.exists():
                 video_path.unlink()
@@ -91,6 +113,7 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
             files_status[video_path.name] = item
             results.append({"filename": video_path.name, **item})
             save_status(output_dir, status)
+            last_upload_finished = time.monotonic()
         except Exception as exc:
             item = {"status": "failed", "error": str(exc)}
             files_status[video_path.name] = item
