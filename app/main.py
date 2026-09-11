@@ -6,20 +6,19 @@ from app.routes.video import router as video_router
 from app.routes.youtube import router as youtube_router
 from app.routes.upload import router as upload_router
 from app.routes.accounts import router as accounts_router
-from app.routes.progress import router as progress_router
+from app.routes.oauth import router as oauth_router
 from app.services.account_manager import ensure_legacy_youtube_account
 
-app = FastAPI(title="Video Splitter 3 Min", version="1.4.0")
-
-# Keep legacy single-account YouTube installations working without coupling
-# account registry tests to production bootstrap behavior.
+# Keep the legacy YouTube token account bootstrap in application startup,
+# rather than inside the account registry itself. This keeps tests isolated.
 ensure_legacy_youtube_account()
 
+app = FastAPI(title="Video Splitter 3 Min", version="1.4.0")
 app.include_router(video_router)
 app.include_router(youtube_router)
 app.include_router(upload_router)
 app.include_router(accounts_router)
-app.include_router(progress_router)
+app.include_router(oauth_router)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 

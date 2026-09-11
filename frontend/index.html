@@ -31,15 +31,20 @@
       <div class="account-manager-panel">
         <div class="section-kicker">ACCOUNT MANAGER</div>
         <h3>Connected Upload Accounts</h3>
-        <p>Add multiple targets. Credentials/tokens stay server-side; jobs store only account IDs.</p>
+        <p>Connect accounts directly from this screen. OAuth credentials stay server-side and upload jobs store only account IDs.</p>
         <form id="account-form" class="upload-form-grid">
-          <label>Platform<select id="account-platform"><option value="youtube">YouTube Channel</option><option value="facebook">Facebook Page</option><option value="instagram">Instagram Account</option></select></label>
-          <label>Account ID<input id="account-id" placeholder="yt_001 / fb_001 / ig_001" required /></label>
+          <label>Platform<select id="account-platform"><option value="facebook">Facebook Page</option><option value="youtube">YouTube Channel</option><option value="instagram">Instagram Account</option></select></label>
+          <label>Account ID<input id="account-id" placeholder="yt_001 / ig_001" required /></label>
           <label>Name<input id="account-name" placeholder="My Shorts Channel" required /></label>
-          <label>External ID<input id="account-external-id" placeholder="Optional channel/page/account ID" /></label>
-          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Only configured accounts appear selectable for uploads.</small></span></label>
-          <button class="secondary-btn" type="submit">Add / Update Account</button>
+          <label>External ID<input id="account-external-id" placeholder="Optional channel/account ID" /></label>
+          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Manual accounts can be enabled for testing. OAuth-connected accounts are marked configured automatically.</small></span></label>
+          <div class="account-connect-actions">
+            <button id="connect-facebook-btn" class="primary-btn" type="button">🔵 Connect Facebook &amp; Select Pages</button>
+            <button id="manual-account-btn" class="secondary-btn" type="submit">Add / Update Account Manually</button>
+          </div>
         </form>
+        <div id="oauth-status" class="oauth-status" hidden></div>
+        <div id="facebook-page-picker" class="oauth-page-picker" hidden></div>
       </div>
     </section>
 
