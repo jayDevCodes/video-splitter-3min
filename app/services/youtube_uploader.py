@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from pathlib import Path
 
 from app.services.metadata_manager import load_metadata, load_status, render_title, save_status
@@ -32,8 +33,13 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
     snippet = metadata.get("youtube", {})
     thumbnail_name = metadata.get("thumbnail")
     thumbnail_path = output_dir / thumbnail_name if thumbnail_name else None
+    gap_seconds = max(0, int(upload_config.get("gap_seconds", 60) or 0))
+    delete_after_upload = bool(upload_config.get("delete_after_upload", True))
 
-    for video_path in pending:
+    for index, video_path in enumerate(pending):
+        if index > 0 and gap_seconds:
+            time.sleep(gap_seconds)
+
         number = _part_number(video_path)
         title = render_title(
             metadata.get("title_template", "{filename} #{number}"),
@@ -76,7 +82,12 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
                 "status": "uploaded",
                 "video_id": video_id,
                 "url": f"https://youtu.be/{video_id}",
+                "deleted": False,
             }
+            if delete_after_upload and video_path.exists():
+                video_path.unlink()
+                item["deleted"] = True
+
             files_status[video_path.name] = item
             results.append({"filename": video_path.name, **item})
             save_status(output_dir, status)
@@ -85,5 +96,6 @@ def upload_pending_folder(output_dir: Path) -> list[dict]:
             files_status[video_path.name] = item
             save_status(output_dir, status)
             results.append({"filename": video_path.name, **item})
+            break
 
     return results
