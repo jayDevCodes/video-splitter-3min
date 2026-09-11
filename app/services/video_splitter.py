@@ -1,6 +1,7 @@
 from pathlib import Path
 import math
 import subprocess
+from collections.abc import Callable
 from app.config import FFMPEG_BIN
 from app.models.video import VideoInfo
 
@@ -17,6 +18,7 @@ def split_video(
     info: VideoInfo,
     chunk_seconds: int = 180,
     orientation: str = "vertical",
+    progress_callback: Callable[[str, int, int], None] | None = None,
 ) -> list[Path]:
     if chunk_seconds <= 0:
         raise ValueError("chunk_seconds must be greater than zero")
@@ -35,8 +37,9 @@ def split_video(
             continue
 
         output_path = output_dir / f"part_{index + 1:03d}.mp4"
-        # Scale while preserving aspect ratio, then crop any excess to the
-        # exact target frame. This avoids stretching faces or objects.
+        if progress_callback:
+            progress_callback("part_started", index + 1, parts)
+
         vf = (
             f"scale={width}:{height}:force_original_aspect_ratio=increase:"
             f"force_divisible_by=2,crop={width}:{height}"
@@ -68,5 +71,7 @@ def split_video(
                 path.unlink(missing_ok=True)
             raise RuntimeError(result.stderr.strip() or f"FFmpeg failed on part {index + 1}.")
         created.append(output_path)
+        if progress_callback:
+            progress_callback("part_completed", index + 1, parts)
 
     return created
