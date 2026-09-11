@@ -7,10 +7,19 @@ export class FacebookOAuthManager {
     this.onAccountsAdded = onAccountsAdded;
     this.popup = null;
     this.flowId = null;
+    this.starting = false;
 
-    this.connectButton?.addEventListener('click', () => this.start());
+    this.connectButton?.addEventListener('click', () => {
+      this.start().catch((error) => {
+        this.setStatus(error?.message || 'Unable to start Facebook connection.', true);
+      });
+    });
     this.platformSelect?.addEventListener('change', () => this.updateVisibility());
-    window.addEventListener('message', (event) => this.handleMessage(event));
+    window.addEventListener('message', (event) => {
+      this.handleMessage(event).catch((error) => {
+        this.setStatus(error?.message || 'Unable to finish Facebook connection.', true);
+      });
+    });
     this.updateVisibility();
   }
 
@@ -21,16 +30,55 @@ export class FacebookOAuthManager {
   }
 
   async start() {
+    if (this.starting) return;
+    this.starting = true;
+    if (this.connectButton) this.connectButton.disabled = true;
     this.setStatus('Starting secure Facebook connection…');
-    this.pagePicker.hidden = true;
-    const response = await fetch('/api/oauth/facebook/start', { cache: 'no-store' });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to start Facebook connection.');
+    if (this.pagePicker) this.pagePicker.hidden = true;
 
-    this.flowId = data.flow_id;
-    this.popup = window.open(data.login_url, 'meta-facebook-connect', 'popup,width=620,height=760,resizable=yes,scrollbars=yes');
-    if (!this.popup) throw new Error('Popup was blocked. Allow popups for this local app and try again.');
-    this.setStatus('Complete Facebook authorization in the new window…');
+    // Open synchronously from the user's click so browsers do not classify
+    // the OAuth popup as a popup created after an async operation.
+    this.popup = window.open(
+      'about:blank',
+      'meta-facebook-connect',
+      'popup,width=620,height=760,resizable=yes,scrollbars=yes'
+    );
+
+    if (!this.popup) {
+      this.starting = false;
+      if (this.connectButton) this.connectButton.disabled = false;
+      throw new Error('Facebook login window was blocked. Allow popups for this local app and try again.');
+    }
+
+    try {
+      const response = await fetch('/api/oauth/facebook/start', { cache: 'no-store' });
+      const data = await this.readJson(response);
+      if (!response.ok) {
+        throw new Error(data.detail || 'Unable to start Facebook connection.');
+      }
+      if (!data.flow_id || !data.login_url) {
+        throw new Error('Facebook connection did not return a valid OAuth URL.');
+      }
+
+      this.flowId = data.flow_id;
+      if (this.popup.closed) {
+        throw new Error('Facebook login window was closed before authorization started.');
+      }
+      this.popup.location.href = data.login_url;
+      this.setStatus('Complete Facebook authorization in the new window…');
+    } catch (error) {
+      try {
+        if (this.popup && !this.popup.closed) this.popup.close();
+      } catch (_) {
+        // Ignore popup cleanup failures.
+      }
+      this.popup = null;
+      this.flowId = null;
+      throw error;
+    } finally {
+      this.starting = false;
+      if (this.connectButton) this.connectButton.disabled = false;
+    }
   }
 
   async handleMessage(event) {
@@ -39,6 +87,7 @@ export class FacebookOAuthManager {
     if (message.type !== 'meta-oauth') return;
 
     if (message.status === 'error') {
+      this.flowId = null;
       this.setStatus(message.message || 'Facebook authorization failed.', true);
       return;
     }
@@ -50,8 +99,10 @@ export class FacebookOAuthManager {
   }
 
   async loadPages() {
+    if (!this.flowId) throw new Error('Facebook connection is missing. Start again.');
+
     const response = await fetch(`/api/oauth/facebook/pages?flow_id=${encodeURIComponent(this.flowId)}`, { cache: 'no-store' });
-    const data = await response.json();
+    const data = await this.readJson(response);
     if (!response.ok) throw new Error(data.detail || 'Unable to load Facebook Pages.');
 
     const pages = data.pages || [];
@@ -64,7 +115,11 @@ export class FacebookOAuthManager {
       : '<div class="oauth-empty">No Facebook Pages were returned for this account. Check Page access and reconnect.</div>';
 
     this.pagePicker.hidden = false;
-    this.pagePicker.querySelector('#add-selected-facebook-pages')?.addEventListener('click', () => this.complete());
+    this.pagePicker.querySelector('#add-selected-facebook-pages')?.addEventListener('click', () => {
+      this.complete().catch((error) => {
+        this.setStatus(error?.message || 'Unable to save Facebook Pages.', true);
+      });
+    });
   }
 
   async complete() {
@@ -73,6 +128,9 @@ export class FacebookOAuthManager {
       this.setStatus('Select at least one Facebook Page.', true);
       return;
     }
+    if (!this.flowId) {
+      throw new Error('Facebook connection expired. Connect Facebook again.');
+    }
 
     this.setStatus('Saving selected Pages securely…');
     const response = await fetch('/api/oauth/facebook/complete', {
@@ -80,13 +138,24 @@ export class FacebookOAuthManager {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ flow_id: this.flowId, page_ids: pageIds }),
     });
-    const data = await response.json();
+    const data = await this.readJson(response);
     if (!response.ok) throw new Error(data.detail || 'Unable to save Facebook Pages.');
 
     this.setStatus(`Added ${data.accounts?.length || 0} Facebook Page account(s).`);
     this.pagePicker.hidden = true;
     this.flowId = null;
-    this.onAccountsAdded?.();
+    this.popup = null;
+    await this.onAccountsAdded?.();
+  }
+
+  async readJson(response) {
+    const text = await response.text();
+    if (!text) return {};
+    try {
+      return JSON.parse(text);
+    } catch (_) {
+      return { detail: text.slice(0, 300) };
+    }
   }
 
   setStatus(message, error = false) {
