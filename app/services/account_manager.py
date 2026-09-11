@@ -9,7 +9,7 @@ ACCOUNTS_DIR = BASE_DIR / "tokens"
 ACCOUNTS_FILE = ACCOUNTS_DIR / "accounts.json"
 
 DEFAULT_ACCOUNTS: list[dict[str, Any]] = [
-    {"id": "yt_default", "platform": "youtube", "type": "channel", "name": "YouTube (connected account)", "enabled": True, "configured": True},
+    {"id": "yt_default", "platform": "youtube", "type": "channel", "name": "YouTube (connected account)", "enabled": True, "configured": True, "token_file": str(ACCOUNTS_DIR / "token.json")},
 ]
 
 
@@ -42,11 +42,13 @@ def upsert_account(account: dict[str, Any]) -> dict[str, Any]:
     platform = str(account["platform"]).lower().strip()
     if platform not in {"youtube", "facebook", "instagram"}:
         raise ValueError(f"Unsupported platform: {platform}")
-    account = {**account, "platform": platform, "enabled": bool(account.get("enabled", True))}
-    accounts = [a for a in list_accounts() if a.get("id") != account["id"]]
-    accounts.append(account)
+    normalized = {**account, "platform": platform, "enabled": bool(account.get("enabled", True))}
+    if platform == "youtube":
+        normalized["token_file"] = str(account.get("token_file") or (ACCOUNTS_DIR / f"youtube_{account['id']}.json"))
+    accounts = [a for a in list_accounts() if a.get("id") != normalized["id"]]
+    accounts.append(normalized)
     save_accounts(accounts)
-    return account
+    return normalized
 
 
 def delete_account(account_id: str) -> None:
@@ -58,7 +60,8 @@ def get_accounts_by_platform() -> dict[str, list[dict[str, Any]]]:
     for account in list_accounts():
         platform = account.get("platform")
         if platform in result and account.get("enabled", True):
-            result[platform].append(account)
+            public = {k: v for k, v in account.items() if k != "token_file"}
+            result[platform].append(public)
     return result
 
 
