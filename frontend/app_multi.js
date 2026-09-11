@@ -1,3 +1,5 @@
+import { ProgressManager } from './progress/progress_manager.js';
+
 const $ = (selector) => document.querySelector(selector);
 const splitForm = $('#split-form');
 const uploadForm = $('#multi-upload-form');
@@ -26,9 +28,11 @@ const privacyInput = $('#upload-privacy');
 const categoryInput = $('#upload-category-id');
 const deleteInput = $('#delete-after-upload');
 const thumbnailInput = $('#upload-thumbnail');
+const liveProgressBox = $('#live-progress');
 
 let generatedFolder = '';
 let accounts = { youtube: [], facebook: [], instagram: [] };
+const progress = new ProgressManager(liveProgressBox);
 
 fileInput?.addEventListener('change', () => {
   fileName.textContent = fileInput.files?.[0]?.name || 'MP4, MOV, MKV, AVI, WEBM and more';
@@ -133,25 +137,39 @@ splitForm?.addEventListener('submit', async (event) => {
   splitButton.disabled = true;
   oldBtn.disabled = true;
   statusBox.hidden = false;
-  statusBox.textContent = 'Generating all Shorts…';
+  statusBox.textContent = 'Starting video split job…';
+  liveProgressBox.hidden = false;
+  liveProgressBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
   try {
     const formData = new FormData();
     formData.append('file', file);
     const chunk = Number($('#chunk-seconds').value || 180);
     const orientation = $('#orientation').value;
-    const response = await fetch(`/api/video/split?chunk_seconds=${encodeURIComponent(chunk)}&orientation=${encodeURIComponent(orientation)}`, { method: 'POST', body: formData });
+    const response = await fetch(`/api/video/split/start?chunk_seconds=${encodeURIComponent(chunk)}&orientation=${encodeURIComponent(orientation)}`, { method: 'POST', body: formData });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to generate Shorts.');
-    await loadAccounts();
-    await openFolder(data.output_directory);
-    resultBox.hidden = false;
-    resultBox.innerHTML = `<strong>Generation complete.</strong><br><br>Folder: <code>${escapeHtml(data.output_directory)}</code><br>Clips: ${data.parts_created}`;
-    oldSection.hidden = true;
-    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    statusBox.textContent = `Generated ${data.parts_created} clip(s). Choose exact upload accounts.`;
+    if (!response.ok) throw new Error(data.detail || 'Unable to start Shorts generation.');
+
+    await progress.start(data.job_id, {
+      onComplete: async (job) => {
+        const result = job.result || {};
+        await loadAccounts();
+        await openFolder(result.output_directory);
+        resultBox.hidden = false;
+        resultBox.innerHTML = `<strong>Generation complete.</strong><br><br>Folder: <code>${escapeHtml(result.output_directory)}</code><br>Clips: ${result.parts_created}`;
+        oldSection.hidden = true;
+        uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        statusBox.textContent = `Generated ${result.parts_created} clip(s). Choose exact upload accounts.`;
+        splitButton.disabled = false;
+        oldBtn.disabled = false;
+      },
+      onError: (message) => {
+        statusBox.textContent = message;
+        splitButton.disabled = false;
+        oldBtn.disabled = false;
+      },
+    });
   } catch (error) {
     statusBox.textContent = error.message;
-  } finally {
     splitButton.disabled = false;
     oldBtn.disabled = false;
   }
@@ -192,7 +210,9 @@ uploadForm?.addEventListener('submit', async (event) => {
   const gap = Math.max(0, Math.min(86400, Number(gapInput.value || 0)));
   uploadButton.disabled = true; splitButton.disabled = true; oldBtn.disabled = true;
   statusBox.hidden = false;
-  statusBox.textContent = `Starting ${targets.length} account target(s). Next clip cannot start until this clip completes everywhere + ${gap}s.`;
+  statusBox.textContent = `Starting ${targets.length} account target(s)…`;
+  liveProgressBox.hidden = false;
+  liveProgressBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
   const formData = new FormData();
   formData.append('output_directory', generatedFolder);
@@ -211,11 +231,21 @@ uploadForm?.addEventListener('submit', async (event) => {
     const response = await fetch('/api/upload/start', { method: 'POST', body: formData });
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Upload queue failed.');
-    renderReport(data, gap);
-    await loadFolders();
+
+    await progress.start(data.job_id, {
+      onComplete: async (job) => {
+        renderReport(job.result || {}, gap);
+        await loadFolders();
+        uploadButton.disabled = false; splitButton.disabled = false; oldBtn.disabled = false;
+      },
+      onError: async (message) => {
+        statusBox.textContent = message;
+        await loadFolders();
+        uploadButton.disabled = false; splitButton.disabled = false; oldBtn.disabled = false;
+      },
+    });
   } catch (error) {
     statusBox.textContent = error.message;
-  } finally {
     uploadButton.disabled = false; splitButton.disabled = false; oldBtn.disabled = false;
   }
 });
@@ -232,6 +262,7 @@ function renderReport(data, gap) {
 window.addEventListener('DOMContentLoaded', () => {
   uploadSection.hidden = true;
   oldSection.hidden = true;
+  liveProgressBox.hidden = true;
   loadAccounts().catch(() => {});
 });
 
