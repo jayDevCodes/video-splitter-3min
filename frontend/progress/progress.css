@@ -1,0 +1,56 @@
+#live-progress {
+  margin-top: 20px;
+  padding: 20px;
+  border: 1px solid var(--border, #e7e7e7);
+  border-radius: 18px;
+  background: var(--panel, #fff);
+}
+
+.live-progress-head { display:flex; justify-content:space-between; gap:16px; align-items:flex-start; }
+.live-progress-head h3 { margin:4px 0; }
+.live-progress-head p { margin:0; color:#6b7280; }
+.live-job-status { border-radius:999px; padding:7px 11px; font-size:12px; font-weight:800; }
+.status-running,.status-waiting,.status-encoding { background:#eef6ff; }
+.status-completed { background:#ecfdf3; }
+.status-failed { background:#fff1f2; }
+.status-queued { background:#f3f4f6; }
+
+.task-animation { display:grid; grid-template-columns:auto 1fr auto; align-items:center; gap:14px; margin-top:18px; padding:16px; border-radius:16px; background:#f8fafc; overflow:hidden; }
+.task-animation-icon { width:52px; height:52px; display:grid; place-items:center; font-size:28px; border-radius:14px; background:#fff; box-shadow:0 8px 20px rgba(15,23,42,.08); }
+.task-animation-track { height:10px; border-radius:999px; background:#e5e7eb; overflow:hidden; }
+.task-animation-bar { height:100%; border-radius:999px; background:#111827; transition:width .35s ease; }
+.task-animation-bar.indeterminate { width:38% !important; animation:progress-indeterminate 1.2s ease-in-out infinite; }
+.anim-split .task-animation-icon, .anim-split .task-animation-bar { animation:split-pulse 1.15s ease-in-out infinite; }
+.anim-analyze .task-animation-icon { animation:scan 1.2s linear infinite; }
+.anim-youtube .task-animation-icon { animation:upload-bob .9s ease-in-out infinite; }
+.anim-facebook .task-animation-icon { animation:upload-bob .9s ease-in-out infinite .1s; }
+.anim-instagram .task-animation-icon { animation:upload-bob .9s ease-in-out infinite .2s; }
+.anim-waiting .task-animation-icon { animation:clock-tick 1s steps(2,end) infinite; }
+.anim-cleanup .task-animation-icon { animation:spin 1.3s linear infinite; }
+.anim-clip .task-animation-icon { animation:film-slide 1s ease-in-out infinite; }
+
+.live-account-list { display:grid; gap:9px; margin-top:14px; }
+.live-account-row { display:grid; grid-template-columns:auto 1fr auto; gap:10px; align-items:center; padding:11px 12px; border:1px solid #edf0f2; border-radius:12px; }
+.account-platform-icon { font-size:18px; }
+.live-account-copy { display:grid; gap:2px; }
+.live-account-copy small { color:#6b7280; }
+.live-account-progress { font-weight:800; }
+.account-running .live-account-progress { animation:blink 1s infinite; }
+.account-failed { border-color:#fecdd3; }
+
+.gap-countdown { display:flex; justify-content:space-between; align-items:center; margin-top:12px; padding:13px 15px; border-radius:12px; background:#fff7ed; }
+.gap-countdown strong { font-size:20px; }
+.live-error { margin-top:12px; padding:12px 14px; border-radius:12px; background:#fff1f2; color:#9f1239; }
+
+@keyframes split-pulse { 0%,100%{transform:translateX(0)} 50%{transform:translateX(4px)} }
+@keyframes scan { 0%{transform:translateX(-3px)} 50%{transform:translateX(3px)} 100%{transform:translateX(-3px)} }
+@keyframes upload-bob { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+@keyframes clock-tick { 50%{transform:rotate(8deg)} }
+@keyframes spin { to{transform:rotate(360deg)} }
+@keyframes film-slide { 0%,100%{transform:translateX(-3px)} 50%{transform:translateX(3px)} }
+@keyframes progress-indeterminate { 0%{transform:translateX(-110%)} 100%{transform:translateX(280%)} }
+@keyframes blink { 50%{opacity:.35} }
+
+@media (prefers-reduced-motion: reduce) {
+  .task-animation *, .task-animation-bar.indeterminate, .account-running .live-account-progress { animation:none !important; transition:none !important; }
+}
