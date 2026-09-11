@@ -7,12 +7,18 @@ from app.services.metadata_manager import load_status
 from app.services.youtube_uploader import VIDEO_RE, _part_number
 
 
-def _pending_parts(output_dir: Path) -> list[Path]:
+def _is_uploaded_for_platform(item: dict, platform: str) -> bool:
+    if item.get("status") == "uploaded":
+        return True
+    return item.get("platforms", {}).get(platform, {}).get("status") == "uploaded"
+
+
+def _pending_parts(output_dir: Path, platform: str = "youtube") -> list[Path]:
     status = load_status(output_dir)
     uploaded = {
         name
         for name, item in status.get("files", {}).items()
-        if item.get("status") == "uploaded"
+        if _is_uploaded_for_platform(item, platform)
     }
     return [
         path
@@ -25,12 +31,11 @@ def folder_summary(output_dir: Path) -> dict:
     status = load_status(output_dir)
     files_status = status.get("files", {})
     generated = sorted(output_dir.glob("part_*.mp4"), key=_part_number)
-    uploaded_count = sum(
-        1 for item in files_status.values() if item.get("status") == "uploaded"
-    )
-    pending = _pending_parts(output_dir)
+    uploaded_count = sum(1 for item in files_status.values() if _is_uploaded_for_platform(item, "youtube"))
+    pending = _pending_parts(output_dir, "youtube")
     failed_count = sum(
-        1 for item in files_status.values() if item.get("status") == "failed"
+        1 for item in files_status.values()
+        if item.get("status") == "failed" or item.get("platforms", {}).get("youtube", {}).get("status") == "failed"
     )
 
     if pending:
@@ -54,11 +59,7 @@ def folder_summary(output_dir: Path) -> dict:
 
 
 def discover_upload_folders(output_root: Path) -> list[dict]:
-    """Find any directory under output_root that contains pending video parts.
-
-    Supports the current layout (output/<video>/part_*.mp4) and older/nested
-    layouts (output/<video>/<subfolder>/part_*.mp4).
-    """
+    """Find output directories with pending Shorts, preserving old/new status formats."""
     if not output_root.exists():
         return []
 
