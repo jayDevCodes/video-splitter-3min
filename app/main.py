@@ -4,10 +4,12 @@ from fastapi.responses import FileResponse
 from app.config import FRONTEND_DIR
 from app.routes.video import router as video_router
 from app.routes.youtube import router as youtube_router
+from app.routes.upload import router as upload_router
 
-app = FastAPI(title="Video Splitter 3 Min", version="1.1.0")
+app = FastAPI(title="Video Splitter 3 Min", version="1.2.0")
 app.include_router(video_router)
 app.include_router(youtube_router)
+app.include_router(upload_router)
 app.mount("/static", StaticFiles(directory=FRONTEND_DIR), name="static")
 
 
