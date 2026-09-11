@@ -46,3 +46,7 @@ Meta's permissions reference documents `pages_manage_posts` as the permission us
 The Meta App still needs the appropriate product configuration and permission access for the use case. Meta can require App Review / screencast requirements for permissions such as `pages_manage_posts`. The local UI cannot bypass those Meta requirements.
 
 The current change implements the secure connection/account-discovery layer. The existing Facebook uploader remains a separate adapter and can be enabled independently once its publishing implementation is completed and tested against a real Page.
+
+## Runtime setup
+
+Set the four `META_*` environment variables before starting the local server; no Meta secret is stored in the repository.
