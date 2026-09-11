@@ -153,7 +153,7 @@ youtubeForm?.addEventListener('submit', async (event) => {
         <li>
           <code>${escapeHtml(item.filename)}</code> — <strong>${escapeHtml(item.status)}</strong>
           ${item.thumbnail_status ? ` — thumbnail: <strong>${escapeHtml(item.thumbnail_status)}</strong>` : ''}
-          ${item.url ? ` — <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open on YouTube</a>` : ''}
+          ${item.url ? ` — <a href=\"${escapeHtml(item.url)}\" target=\"_blank\" rel=\"noopener\">Open on YouTube</a>` : ''}
           ${item.deleted ? ' — deleted locally' : ''}
           ${item.error ? ` — ${escapeHtml(item.error)}` : ''}
         </li>`).join('')}</ul>`;
@@ -269,3 +269,95 @@ window.addEventListener('DOMContentLoaded', () => {
 function escapeHtml(value) {
   return String(value).replace(/[&<>'\"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
+
+// Multi-platform upload UI. The original YouTube form is replaced after its
+// legacy listeners are installed, so the new queue becomes the single upload path.
+window.addEventListener('DOMContentLoaded', () => {
+  const originalForm = document.querySelector('#youtube-form');
+  if (!originalForm) return;
+  const form = originalForm.cloneNode(true);
+  originalForm.replaceWith(form);
+
+  const actions = form.querySelector('.upload-actions');
+  const uploadGrid = form.querySelector('.upload-form-grid');
+  const platformRow = document.createElement('div');
+  platformRow.className = 'full-width';
+  platformRow.innerHTML = `
+    <label>Upload to
+      <div id="platform-picker" class="platform-picker">
+        <label><input type="checkbox" value="youtube" checked> YouTube Shorts</label>
+        <label><input type="checkbox" value="facebook" disabled> Facebook Page <small>Connect Meta first</small></label>
+        <label><input type="checkbox" value="instagram" disabled> Instagram Reels <small>Connect Meta first</small></label>
+      </div>
+    </label>`;
+  uploadGrid?.prepend(platformRow);
+
+  const gapHelp = form.querySelector('#upload-gap')?.parentElement?.querySelector('small');
+  if (gapHelp) gapHelp.textContent = 'Mandatory minimum delay after the previous clip finishes on all selected platforms.';
+  if (uploadSummary) uploadSummary.textContent = 'Select platforms and a fixed clip-to-clip gap. The queue cannot start the next clip before that gap expires.';
+
+  form.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    if (!generatedFolder) return;
+
+    const selected = [...form.querySelectorAll('#platform-picker input:checked')].map(input => input.value);
+    if (!selected.length) {
+      statusBox.textContent = 'Select at least one platform.';
+      return;
+    }
+    const gap = Math.max(0, Math.min(86400, Number(form.querySelector('#upload-gap')?.value || 0)));
+    uploadButton.disabled = true;
+    statusBox.hidden = false;
+    uploadResultBox.hidden = true;
+    statusBox.textContent = `Starting ${selected.join(' + ')} upload queue. Clip-to-clip gap: ${gap}s.`;
+
+    const payload = new FormData();
+    payload.append('output_directory', generatedFolder);
+    payload.append('platforms', selected.join(','));
+    payload.append('title_template', form.querySelector('#upload-title-template')?.value || '{filename} #{number}');
+    payload.append('description', form.querySelector('#upload-description')?.value || '');
+    payload.append('tags', form.querySelector('#upload-tags')?.value || 'shorts,youtube');
+    payload.append('privacy', form.querySelector('#upload-privacy')?.value || 'private');
+    payload.append('category_id', form.querySelector('#upload-category-id')?.value || '22');
+    payload.append('made_for_kids', 'false');
+    payload.append('gap_seconds', String(gap));
+    payload.append('delete_after_upload', form.querySelector('#delete-after-upload')?.checked ? 'true' : 'false');
+    const thumbnail = form.querySelector('#upload-thumbnail')?.files?.[0];
+    if (thumbnail) payload.append('thumbnail', thumbnail);
+
+    try {
+      const response = await fetch('/api/upload/start', { method: 'POST', body: payload });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.detail || 'Unable to start the upload queue.');
+      statusBox.textContent = data.stopped_on_error
+        ? `Queue paused after a platform error. ${data.remaining_files} clip(s) remain.`
+        : `Queue finished. Gap of ${gap}s was enforced between completed clips.`;
+      uploadResultBox.hidden = false;
+      uploadResultBox.innerHTML = `
+        <strong>Multi-platform upload report</strong><br><br>
+        <strong>Platforms:</strong> ${escapeHtml(selected.join(', '))}<br>
+        <strong>Fixed clip gap:</strong> ${gap}s (enforced after all selected platforms finish each clip)<br>
+        <strong>Processed:</strong> ${data.processed}<br>
+        <strong>Remaining local MP4s:</strong> ${data.remaining_files}<br><br>
+        <ul>${(data.results || []).map(item => `
+          <li><code>${escapeHtml(item.filename)}</code>
+            <ul>${Object.entries(item.platforms || {}).map(([platform, result]) => `<li>${escapeHtml(platform)} — <strong>${escapeHtml(result.status || '')}</strong>${result.url ? ` — <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">Open</a>` : ''}${result.error ? ` — ${escapeHtml(result.error)}` : ''}</li>`).join('')}</ul>
+          </li>`).join('')}</ul>`;
+    } catch (error) {
+      statusBox.textContent = error.message;
+    } finally {
+      uploadButton.disabled = false;
+    }
+  });
+
+  fetch('/api/upload/platforms', { cache: 'no-store' })
+    .then(response => response.json())
+    .then(data => {
+      for (const platform of data.platforms || []) {
+        const input = form.querySelector(`#platform-picker input[value="${platform.id}"]`);
+        if (!input) continue;
+        input.disabled = !platform.configured;
+      }
+    })
+    .catch(() => {});
+});

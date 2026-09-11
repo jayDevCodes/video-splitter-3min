@@ -3,8 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video Splitter • YouTube Shorts</title>
+  <title>Video Splitter • Multi-Platform Shorts</title>
   <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="/static/progress/progress.css" />
 </head>
 <body>
   <main class="card">
@@ -13,94 +14,58 @@
     <p class="subtitle">Create all video parts first. Upload new or older generated Shorts separately.</p>
 
     <section id="generation-section" class="workflow-section generation-section">
-      <div class="workflow-head">
-        <div>
-          <div class="section-kicker">STEP 01 · VIDEO GENERATION</div>
-          <h2>Create all Shorts</h2>
-          <p>Choose a source video, split length and output format. Nothing is uploaded during generation.</p>
-        </div>
-        <span class="workflow-badge">GENERATE</span>
-      </div>
+      <div class="workflow-head"><div><div class="section-kicker">STEP 01 · VIDEO GENERATION</div><h2>Create all Shorts</h2><p>Choose a source video, split length and output format.</p></div><span class="workflow-badge">GENERATE</span></div>
       <form id="split-form">
-        <label class="dropzone" for="video-file">
-          <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
-          <span class="upload-icon">↑</span>
-          <span class="drop-title">Choose your source video</span>
-          <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
-        </label>
-        <div class="row settings-row">
-          <label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label>
-          <label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option></select></label>
-        </div>
+        <label class="dropzone" for="video-file"><input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required /><span class="upload-icon">↑</span><span class="drop-title">Choose your source video</span><span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span></label>
+        <div class="row settings-row"><label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label><label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option></select></label></div>
         <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
       </form>
     </section>
 
-    <div class="upload-old-action">
-      <button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button>
-    </div>
+    <div class="upload-old-action"><button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button></div>
 
     <section id="old-upload-section" class="workflow-section old-upload-section" hidden>
-      <div class="workflow-head">
-        <div>
-          <div class="section-kicker">YOUTUBE · OLD VIDEO</div>
-          <h2>Upload an Existing Video Set</h2>
-          <p>Select the existing output folder. Its saved YouTube settings will be restored automatically.</p>
-        </div>
-        <span class="workflow-badge ready-badge">RESUME</span>
-      </div>
+      <div class="workflow-head"><div><div class="section-kicker">MULTI-PLATFORM · OLD VIDEO</div><h2>Upload an Existing Video Set</h2><p>Select the folder, then choose exact YouTube channels, Facebook Pages and Instagram accounts.</p></div><span class="workflow-badge ready-badge">RESUME</span></div>
+      <div class="folder-picker"><label for="old-folder-select">Select output folder</label><select id="old-folder-select"><option value="">Loading folders…</option></select><small>Saved upload settings and previous account targets are restored.</small><div id="old-folder-empty" class="empty-state" hidden>No output folders with pending Shorts were found.</div></div>
 
-      <div class="folder-picker">
-        <label for="old-folder-select">Select output folder</label>
-        <select id="old-folder-select">
-          <option value="">Loading folders…</option>
-        </select>
-        <small id="old-folder-help">Choose one folder and its upload settings will open automatically.</small>
-        <div id="old-folder-empty" class="empty-state" hidden>No output folders with pending Shorts were found.</div>
+      <div class="account-manager-panel">
+        <div class="section-kicker">ACCOUNT MANAGER</div>
+        <h3>Connected Upload Accounts</h3>
+        <p>Add multiple targets. Credentials/tokens stay server-side; jobs store only account IDs.</p>
+        <form id="account-form" class="upload-form-grid">
+          <label>Platform<select id="account-platform"><option value="youtube">YouTube Channel</option><option value="facebook">Facebook Page</option><option value="instagram">Instagram Account</option></select></label>
+          <label>Account ID<input id="account-id" placeholder="yt_001 / fb_001 / ig_001" required /></label>
+          <label>Name<input id="account-name" placeholder="My Shorts Channel" required /></label>
+          <label>External ID<input id="account-external-id" placeholder="Optional channel/page/account ID" /></label>
+          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Only configured accounts appear selectable for uploads.</small></span></label>
+          <button class="secondary-btn" type="submit">Add / Update Account</button>
+        </form>
       </div>
     </section>
 
     <section id="upload-section" class="workflow-section upload-section" hidden>
-      <div class="workflow-head">
-        <div>
-          <div class="section-kicker">YOUTUBE UPLOAD</div>
-          <h2>Continue Upload</h2>
-          <p id="upload-summary">Select a folder and configure the upload details.</p>
-        </div>
-        <span class="workflow-badge ready-badge">READY</span>
-      </div>
-      <div class="queue-strip">
-        <div><span class="queue-label">SELECTED FOLDER</span><strong id="output-folder">—</strong></div>
-        <div><span class="queue-label">REMAINING</span><strong id="parts-count">0</strong></div>
-        <div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div>
-      </div>
-      <form id="youtube-form">
+      <div class="workflow-head"><div><div class="section-kicker">UPLOAD TARGETS</div><h2>Choose Accounts</h2><p>Select one or many accounts inside each platform. Every selected account receives every selected clip.</p></div><span class="workflow-badge ready-badge">TARGETS</span></div>
+      <div class="queue-strip"><div><span class="queue-label">FOLDER</span><strong id="output-folder">—</strong></div><div><span class="queue-label">REMAINING</span><strong id="parts-count">0</strong></div><div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div></div>
+      <form id="multi-upload-form">
         <input id="upload-output-directory" type="hidden" />
+        <div id="account-targets" class="account-targets"></div>
         <div class="upload-form-grid">
-          <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" placeholder="Your Short title #{number}" /><small><code>{number}</code> follows the original generation order.</small></label>
-          <label>Upload gap (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Saved value is restored when available.</small></label>
-          <label class="full-width">Description<textarea id="upload-description" rows="7" placeholder="Write the description for every Short..."></textarea></label>
-          <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" placeholder="shorts, youtube, viral" /></label>
-          <label>Visibility<select id="upload-privacy"><option value="private">Private — review first</option><option value="unlisted">Unlisted — link only</option><option value="public">Public — publish immediately</option></select></label>
-          <label>Category ID<input id="upload-category-id" type="text" value="22" /></label>
-          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png" /><small id="saved-thumbnail-note">Optional. Saved thumbnail will be reused automatically when available.</small></label>
+          <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" /></label>
+          <label>Gap between clips (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Mandatory gap starts only after every selected account finishes the previous clip.</small></label>
+          <label class="full-width">Description<textarea id="upload-description" rows="6" placeholder="Description for every selected target..."></textarea></label>
+          <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" /></label>
+          <label>YouTube visibility<select id="upload-privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
+          <label>YouTube category<input id="upload-category-id" type="text" value="22" /></label>
+          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png,image/webp" /></label>
         </div>
-        <label class="upload-toggle-row">
-          <input id="delete-after-upload" type="checkbox" checked />
-          <span class="toggle-ui"></span>
-          <span class="toggle-copy"><strong>Delete local Short after upload</strong><small>Delete the MP4 only after YouTube confirms success.</small></span>
-        </label>
-        <div class="upload-actions">
-          <div class="upload-rule"><strong>Resume-safe queue</strong><span>Already uploaded Shorts are skipped. Remaining Shorts keep their original order.</span></div>
-          <button id="upload-btn" class="primary-btn youtube-btn" type="submit">Continue Upload</button>
-        </div>
+        <label class="upload-toggle-row"><input id="delete-after-upload" type="checkbox" checked /><span class="toggle-ui"></span><span class="toggle-copy"><strong>Delete local clip after all selected targets succeed</strong><small>Failed targets keep the clip for retry.</small></span></label>
+        <div class="upload-actions"><div class="upload-rule"><strong>Clip-first queue</strong><span>Clip 1 → all selected accounts → mandatory gap → Clip 2.</span></div><button id="upload-btn" class="primary-btn youtube-btn" type="submit">Start Multi-Account Upload</button></div>
       </form>
     </section>
 
-    <div id="status" class="status" hidden></div>
-    <div id="result" class="result" hidden></div>
-    <div id="upload-result" class="result" hidden></div>
+    <section id="live-progress" hidden aria-live="polite"></section>
+    <div id="status" class="status" hidden></div><div id="result" class="result" hidden></div><div id="upload-result" class="result" hidden></div>
   </main>
-  <script src="/static/app.js"></script>
+  <script type="module" src="/static/app_multi.js"></script>
 </body>
 </html>

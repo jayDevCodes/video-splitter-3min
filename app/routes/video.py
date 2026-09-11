@@ -1,9 +1,11 @@
 from pathlib import Path
 import asyncio
-from fastapi import APIRouter, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
 from app.config import DEFAULT_CHUNK_SECONDS, MAX_UPLOAD_MB, OUTPUT_DIR
 from app.models.video import SplitResponse
 from app.services.file_manager import cleanup_file, make_output_directory, save_upload
+from app.services.jobs.job_manager import job_manager
+from app.services.jobs.split_job import run_split_job
 from app.services.metadata_manager import is_ready, mark_ready
 from app.services.video_analyzer import probe_video
 from app.services.video_splitter import OUTPUT_SIZES, split_video
@@ -35,6 +37,37 @@ def _safe_output_dir(output_directory: str) -> Path:
     return candidate
 
 
+@router.post("/split/start")
+async def start_split_job(
+    background_tasks: BackgroundTasks,
+    file: UploadFile = File(...),
+    chunk_seconds: int = DEFAULT_CHUNK_SECONDS,
+    orientation: str = Query("vertical", description="Output format: vertical or horizontal"),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Please choose a video file.")
+    if chunk_seconds <= 0 or chunk_seconds > 3600:
+        raise HTTPException(status_code=400, detail="chunk_seconds must be between 1 and 3600 seconds.")
+    if orientation not in OUTPUT_SIZES:
+        raise HTTPException(status_code=400, detail="orientation must be 'vertical' or 'horizontal'.")
+
+    input_path = await asyncio.to_thread(save_upload, file, file.filename)
+    _validate_upload_size(input_path)
+    job_id = job_manager.create(
+        "video_split",
+        {"source_filename": file.filename, "chunk_seconds": chunk_seconds, "orientation": orientation},
+    )
+    background_tasks.add_task(
+        run_split_job,
+        job_id,
+        input_path,
+        file.filename,
+        chunk_seconds,
+        orientation,
+    )
+    return {"job_id": job_id, "status": "queued"}
+
+
 @router.post("/split", response_model=SplitResponse)
 async def split_uploaded_video(
     file: UploadFile = File(...),
@@ -54,9 +87,7 @@ async def split_uploaded_video(
         _validate_upload_size(input_path)
         info = await asyncio.to_thread(probe_video, input_path)
         output_dir = await asyncio.to_thread(make_output_directory, file.filename)
-        parts = await asyncio.to_thread(
-            split_video, input_path, output_dir, info, chunk_seconds, orientation
-        )
+        parts = await asyncio.to_thread(split_video, input_path, output_dir, info, chunk_seconds, orientation)
         await asyncio.to_thread(mark_ready, output_dir)
 
         return SplitResponse(
