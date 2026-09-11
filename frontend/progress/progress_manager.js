@@ -1,6 +1,14 @@
 import { renderProgress } from './task_renderer.js';
 import { createTimelineState, applyUploadEvent } from './upload_timeline.js';
 
+const EVENT_NAMES = [
+  'job_queued', 'job_started', 'job_update', 'job_completed', 'job_failed',
+  'task_started', 'task_progress', 'task_completed', 'task_failed',
+  'split_progress', 'clip_started', 'clip_completed', 'clip_failed', 'clip_skipped', 'clip_deleted',
+  'account_upload_started', 'account_upload_completed', 'account_upload_failed', 'account_skipped',
+  'gap_started', 'gap_tick', 'gap_completed',
+];
+
 export class ProgressManager {
   constructor(root) {
     this.root = root;
@@ -22,7 +30,15 @@ export class ProgressManager {
     renderProgress(this.root, this.model);
 
     this.source = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
-    this.source.onmessage = (message) => this._handle(JSON.parse(message.data), onComplete, onError);
+    for (const eventName of EVENT_NAMES) {
+      this.source.addEventListener(eventName, (event) => {
+        try {
+          this._handle(JSON.parse(event.data), onComplete, onError);
+        } catch (error) {
+          onError?.(error.message);
+        }
+      });
+    }
     this.source.onerror = async () => {
       if (!this.source) return;
       const current = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`, { cache: 'no-store' }).then((r) => r.ok ? r.json() : null).catch(() => null);
@@ -52,7 +68,7 @@ export class ProgressManager {
     renderProgress(this.root, this.model);
     if (event.event === 'job_completed') {
       this.stop();
-      fetch(`/api/jobs/${encodeURIComponent(event.job_id)}`, { cache: 'no-store' }).then((r) => r.json()).then((job) => onComplete?.(job));
+      fetch(`/api/jobs/${encodeURIComponent(event.job_id)}`, { cache: 'no-store' }).then((r) => r.json()).then((job) => onComplete?.(job)).catch((error) => onError?.(error.message));
     }
     if (event.event === 'job_failed') {
       this.stop();
