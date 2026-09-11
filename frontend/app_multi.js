@@ -1,4 +1,5 @@
 import { ProgressManager } from './progress/progress_manager.js';
+import { FacebookOAuthManager } from './accounts/facebook_oauth.js';
 
 const $ = (selector) => document.querySelector(selector);
 const splitForm = $('#split-form');
@@ -29,10 +30,42 @@ const categoryInput = $('#upload-category-id');
 const deleteInput = $('#delete-after-upload');
 const thumbnailInput = $('#upload-thumbnail');
 const liveProgressBox = $('#live-progress');
+const accountPlatform = $('#account-platform');
+const accountIdInput = $('#account-id');
+const accountNameInput = $('#account-name');
+const accountExternalIdInput = $('#account-external-id');
+const accountConfiguredInput = $('#account-configured');
+const manualAccountButton = $('#manual-account-btn');
 
 let generatedFolder = '';
 let accounts = { youtube: [], facebook: [], instagram: [] };
 const progress = new ProgressManager(liveProgressBox);
+
+const facebookOAuth = new FacebookOAuthManager({
+  connectButton: $('#connect-facebook-btn'),
+  platformSelect: accountPlatform,
+  statusBox: $('#oauth-status'),
+  pagePicker: $('#facebook-page-picker'),
+  onAccountsAdded: async () => {
+    await loadAccounts();
+    statusBox.hidden = false;
+    statusBox.textContent = 'Facebook Pages added. Select them in the upload targets below.';
+  },
+});
+
+function updateAccountFormMode() {
+  const facebook = accountPlatform.value === 'facebook';
+  accountIdInput.required = !facebook;
+  accountNameInput.required = !facebook;
+  accountIdInput.disabled = facebook;
+  accountNameInput.disabled = facebook;
+  accountExternalIdInput.disabled = facebook;
+  accountConfiguredInput.disabled = facebook;
+  manualAccountButton.hidden = facebook;
+}
+
+accountPlatform?.addEventListener('change', updateAccountFormMode);
+updateAccountFormMode();
 
 fileInput?.addEventListener('change', () => {
   fileName.textContent = fileInput.files?.[0]?.name || 'MP4, MOV, MKV, AVI, WEBM and more';
@@ -105,14 +138,19 @@ async function openFolder(path) {
 
 accountForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (accountPlatform.value === 'facebook') {
+    statusBox.hidden = false;
+    statusBox.textContent = 'Use Connect Facebook & Select Pages for Facebook accounts.';
+    return;
+  }
   const payload = {
-    id: $('#account-id').value.trim(),
-    platform: $('#account-platform').value,
-    name: $('#account-name').value.trim(),
-    external_id: $('#account-external-id').value.trim() || null,
-    type: $('#account-platform').value === 'facebook' ? 'page' : $('#account-platform').value === 'instagram' ? 'professional_account' : 'channel',
+    id: accountIdInput.value.trim(),
+    platform: accountPlatform.value,
+    name: accountNameInput.value.trim(),
+    external_id: accountExternalIdInput.value.trim() || null,
+    type: accountPlatform.value === 'instagram' ? 'professional_account' : 'channel',
     enabled: true,
-    configured: $('#account-configured').checked,
+    configured: accountConfiguredInput.checked,
   };
   if (!payload.id || !payload.name) return;
   try {
@@ -120,7 +158,9 @@ accountForm?.addEventListener('submit', async (event) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Unable to save account.');
     accountForm.reset();
-    $('#account-configured').checked = true;
+    accountPlatform.value = 'facebook';
+    accountConfiguredInput.checked = true;
+    updateAccountFormMode();
     statusBox.hidden = false;
     statusBox.textContent = `Account saved: ${payload.name}.`;
     await loadAccounts();
