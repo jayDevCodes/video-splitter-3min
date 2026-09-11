@@ -6,8 +6,9 @@ from pathlib import Path
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
 
 from app.config import OUTPUT_DIR
+from app.services.account_manager import get_accounts_by_platform, resolve_targets
 from app.services.metadata_manager import load_metadata
-from app.services.multi_platform_uploader import run_multi_platform_upload, validate_platforms
+from app.services.multi_platform_uploader import run_multi_platform_upload
 from app.services.upload_manager import discover_upload_folders, folder_summary
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -24,13 +25,18 @@ def _safe_output_dir(output_directory: str) -> Path:
     return candidate
 
 
+@router.get("/targets")
+def upload_targets():
+    return {"accounts": get_accounts_by_platform()}
+
+
 @router.get("/platforms")
 def platform_capabilities():
+    accounts = get_accounts_by_platform()
     return {
         "platforms": [
-            {"id": "youtube", "name": "YouTube Shorts", "configured": True},
-            {"id": "facebook", "name": "Facebook Page", "configured": False},
-            {"id": "instagram", "name": "Instagram Reels", "configured": False},
+            {"id": platform, "name": label, "configured": any(a.get("configured", False) for a in accounts.get(platform, [])), "accounts": accounts.get(platform, [])}
+            for platform, label in (("youtube", "YouTube Shorts"), ("facebook", "Facebook Page"), ("instagram", "Instagram Reels"))
         ]
     }
 
@@ -56,7 +62,7 @@ def get_folder(output_directory: str):
 @router.post("/start")
 def start_upload(
     output_directory: str = Form(...),
-    platforms: str = Form("youtube"),
+    targets: str = Form(...),
     title_template: str = Form("{filename} #{number}"),
     description: str = Form(""),
     tags: str = Form("shorts,youtube"),
@@ -69,8 +75,11 @@ def start_upload(
 ):
     directory = _safe_output_dir(output_directory)
     try:
-        selected = validate_platforms([item for item in platforms.split(",") if item.strip()])
-    except ValueError as exc:
+        target_list = json.loads(targets)
+        if not isinstance(target_list, list):
+            raise ValueError("targets must be a JSON array")
+        accounts = resolve_targets(target_list)
+    except (json.JSONDecodeError, ValueError) as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     if privacy not in {"private", "unlisted", "public"}:
         raise HTTPException(status_code=400, detail="privacy must be private, unlisted, or public.")
@@ -97,17 +106,18 @@ def start_upload(
 
     job_path = directory / "_config" / "upload_job.json"
     job_path.parent.mkdir(parents=True, exist_ok=True)
+    target_snapshot = [{"account_id": a["id"], "platform": a["platform"], "name": a["name"]} for a in accounts]
     job_path.write_text(json.dumps({
         "status": "running",
-        "platforms": selected,
+        "targets": target_snapshot,
         "gap_seconds": gap_seconds,
-        "gap_rule": "minimum delay starts after every selected platform finishes the previous clip",
+        "gap_rule": "minimum delay starts after every selected account finishes the previous clip",
         "delete_after_upload": delete_after_upload,
-    }, indent=2), encoding="utf-8")
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
 
     result = run_multi_platform_upload(
         directory,
-        platforms=selected,
+        targets=target_list,
         metadata=metadata,
         gap_seconds=gap_seconds,
         delete_after_upload=delete_after_upload,
@@ -115,9 +125,9 @@ def start_upload(
 
     job_path.write_text(json.dumps({
         "status": "failed" if result.get("stopped_on_error") else ("complete" if result.get("remaining_files") == 0 else "paused"),
-        "platforms": selected,
+        "targets": target_snapshot,
         "gap_seconds": gap_seconds,
-        "gap_rule": "minimum delay starts after every selected platform finishes the previous clip",
+        "gap_rule": "minimum delay starts after every selected account finishes the previous clip",
         "delete_after_upload": delete_after_upload,
-    }, indent=2), encoding="utf-8")
+    }, indent=2, ensure_ascii=False), encoding="utf-8")
     return result
