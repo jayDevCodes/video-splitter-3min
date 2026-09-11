@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 from fastapi import APIRouter, Form, HTTPException, UploadFile, File
@@ -8,7 +9,6 @@ from app.config import OUTPUT_DIR
 from app.services.metadata_manager import load_metadata
 from app.services.multi_platform_uploader import run_multi_platform_upload, validate_platforms
 from app.services.upload_manager import discover_upload_folders, folder_summary
-from app.services.youtube_auth import get_youtube_service
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -48,7 +48,9 @@ def get_folder(output_directory: str):
         metadata = load_metadata(directory)
     except FileNotFoundError:
         metadata = {}
-    return {**summary, "metadata": metadata}
+    job_path = directory / "_config" / "upload_job.json"
+    job = json.loads(job_path.read_text(encoding="utf-8")) if job_path.exists() else {}
+    return {**summary, "metadata": metadata, "upload_job": job}
 
 
 @router.post("/start")
@@ -75,8 +77,6 @@ def start_upload(
     if gap_seconds < 0 or gap_seconds > 86400:
         raise HTTPException(status_code=400, detail="gap_seconds must be between 0 and 86400 seconds.")
 
-    # Thumbnail remains compatible with the existing folder-level YouTube flow.
-    # Other platforms can consume the same folder thumbnail when their adapters are enabled.
     if thumbnail and thumbnail.filename:
         suffix = Path(thumbnail.filename).suffix.lower()
         if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
@@ -91,17 +91,19 @@ def start_upload(
         "description": description,
         "tags": [tag.strip() for tag in tags.split(",") if tag.strip()],
         "thumbnail": None,
-        "youtube": {
-            "privacy": privacy,
-            "category_id": category_id,
-            "made_for_kids": made_for_kids,
-        },
-        "upload": {
-            "enabled": True,
-            "gap_seconds": gap_seconds,
-            "delete_after_upload": delete_after_upload,
-        },
+        "youtube": {"privacy": privacy, "category_id": category_id, "made_for_kids": made_for_kids},
+        "upload": {"enabled": True, "gap_seconds": gap_seconds, "delete_after_upload": delete_after_upload},
     }
+
+    job_path = directory / "_config" / "upload_job.json"
+    job_path.parent.mkdir(parents=True, exist_ok=True)
+    job_path.write_text(json.dumps({
+        "status": "running",
+        "platforms": selected,
+        "gap_seconds": gap_seconds,
+        "gap_rule": "minimum delay starts after every selected platform finishes the previous clip",
+        "delete_after_upload": delete_after_upload,
+    }, indent=2), encoding="utf-8")
 
     result = run_multi_platform_upload(
         directory,
@@ -110,4 +112,12 @@ def start_upload(
         gap_seconds=gap_seconds,
         delete_after_upload=delete_after_upload,
     )
+
+    job_path.write_text(json.dumps({
+        "status": "failed" if result.get("stopped_on_error") else ("complete" if result.get("remaining_files") == 0 else "paused"),
+        "platforms": selected,
+        "gap_seconds": gap_seconds,
+        "gap_rule": "minimum delay starts after every selected platform finishes the previous clip",
+        "delete_after_upload": delete_after_upload,
+    }, indent=2), encoding="utf-8")
     return result
