@@ -112,7 +112,10 @@ youtubeForm?.addEventListener('submit', async (event) => {
   showOldUploadBtn.disabled = true;
   uploadResultBox.hidden = true;
   statusBox.hidden = false;
-  statusBox.textContent = 'Uploading Shorts in generated order…';
+  const gap = Math.max(0, Number(uploadGap.value || 0));
+  statusBox.textContent = gap
+    ? `Uploading Shorts in order with a ${gap}-second gap between videos…`
+    : 'Uploading Shorts in generated order…';
 
   const formData = new FormData();
   formData.append('output_directory', generatedFolder);
@@ -122,7 +125,7 @@ youtubeForm?.addEventListener('submit', async (event) => {
   formData.append('privacy', uploadPrivacy.value);
   formData.append('category_id', uploadCategory.value);
   formData.append('made_for_kids', 'false');
-  formData.append('gap_seconds', uploadGap.value || '60');
+  formData.append('gap_seconds', String(gap));
   formData.append('delete_after_upload', uploadDelete.checked ? 'true' : 'false');
   if (uploadThumbnail.files?.[0]) formData.append('thumbnail', uploadThumbnail.files[0]);
 
@@ -133,18 +136,23 @@ youtubeForm?.addEventListener('submit', async (event) => {
 
     const successCount = (data.results || []).filter(item => item.status === 'uploaded').length;
     const failedCount = (data.results || []).filter(item => item.status === 'failed').length;
+    const thumbnailFailedCount = (data.results || []).filter(item => String(item.thumbnail_status || '').startsWith('failed')).length;
     statusBox.textContent = failedCount
       ? `${successCount} uploaded. Queue stopped on an error; ${data.remaining_files} Short(s) remain.`
-      : `YouTube upload complete — ${successCount} Short(s) uploaded.`;
+      : thumbnailFailedCount
+        ? `${successCount} uploaded, but ${thumbnailFailedCount} thumbnail(s) could not be attached.`
+        : `YouTube upload complete — ${successCount} Short(s) uploaded with the configured gap.`;
 
     uploadResultBox.hidden = false;
     uploadResultBox.innerHTML = `
       <strong>YouTube upload report</strong><br><br>
       <strong>Order:</strong> part_001 → part_002 → part_003 → …<br>
+      <strong>Gap:</strong> ${gap} second(s) between successful uploads<br>
       <strong>Remaining local MP4s:</strong> ${data.remaining_files}<br><br>
       <ul>${(data.results || []).map(item => `
         <li>
           <code>${escapeHtml(item.filename)}</code> — <strong>${escapeHtml(item.status)}</strong>
+          ${item.thumbnail_status ? ` — thumbnail: <strong>${escapeHtml(item.thumbnail_status)}</strong>` : ''}
           ${item.url ? ` — <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">Open on YouTube</a>` : ''}
           ${item.deleted ? ' — deleted locally' : ''}
           ${item.error ? ` — ${escapeHtml(item.error)}` : ''}
@@ -220,7 +228,7 @@ async function showUploadFormForNewFolder(data) {
   uploadCategory.value = '22';
   uploadDelete.checked = true;
   uploadThumbnail.value = '';
-  if (savedThumbnailNote) savedThumbnailNote.textContent = 'Optional. Select a thumbnail to reuse for every uploaded Short.';
+  if (savedThumbnailNote) savedThumbnailNote.textContent = 'Optional. Select a thumbnail to reuse for every uploaded Short. It will be normalized automatically for YouTube.';
   uploadSection.hidden = false;
 }
 
@@ -245,8 +253,8 @@ function showUploadForm(data) {
 
   if (savedThumbnailNote) {
     savedThumbnailNote.textContent = data.saved_thumbnail
-      ? `Saved thumbnail: ${data.saved_thumbnail}. It will be reused automatically unless you choose a new thumbnail.`
-      : 'Optional. Select a thumbnail to reuse for every uploaded Short.';
+      ? `Saved thumbnail: ${data.saved_thumbnail}. It will be normalized and reused automatically.`
+      : 'Optional. Select a thumbnail to reuse for every uploaded Short. It will be normalized automatically for YouTube.';
   }
 
   uploadSection.hidden = false;
