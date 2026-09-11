@@ -4,6 +4,7 @@ import time
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from app.config import OUTPUT_DIR
 from app.services.metadata_manager import load_metadata, load_status, render_title, save_status, write_metadata
+from app.services.thumbnail_manager import prepare_thumbnail
 from app.services.upload_manager import discover_upload_folders, folder_summary
 from app.services.youtube_auth import get_youtube_service
 
@@ -89,18 +90,29 @@ def upload_to_youtube(
         existing_metadata = {}
 
     saved_thumbnail_name = existing_metadata.get("thumbnail")
-    thumbnail_name = saved_thumbnail_name if saved_thumbnail_name and (output_dir / saved_thumbnail_name).exists() else None
-    thumbnail_path = output_dir / thumbnail_name if thumbnail_name else None
+    thumbnail_path = output_dir / saved_thumbnail_name if saved_thumbnail_name else None
 
     if thumbnail and thumbnail.filename:
         suffix = Path(thumbnail.filename).suffix.lower()
-        if suffix not in {".jpg", ".jpeg", ".png"}:
-            raise HTTPException(status_code=400, detail="Thumbnail must be JPG, JPEG, or PNG.")
-        thumbnail_name = f"thumbnail{suffix}"
-        thumbnail_path = output_dir / thumbnail_name
-        with thumbnail_path.open("wb") as target:
-            import shutil
-            shutil.copyfileobj(thumbnail.file, target)
+        if suffix not in {".jpg", ".jpeg", ".png", ".webp"}:
+            raise HTTPException(status_code=400, detail="Thumbnail must be JPG, JPEG, PNG, or WEBP.")
+        try:
+            temp_thumbnail = output_dir / f"._thumbnail_source{suffix}"
+            with temp_thumbnail.open("wb") as target:
+                import shutil
+                shutil.copyfileobj(thumbnail.file, target)
+            thumbnail_name, thumbnail_path = prepare_thumbnail(temp_thumbnail, output_dir)
+            temp_thumbnail.unlink(missing_ok=True)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Thumbnail could not be prepared: {exc}") from exc
+    elif thumbnail_path and thumbnail_path.exists():
+        try:
+            thumbnail_name, thumbnail_path = prepare_thumbnail(thumbnail_path, output_dir)
+        except Exception as exc:
+            raise HTTPException(status_code=400, detail=f"Saved thumbnail could not be prepared: {exc}") from exc
+    else:
+        thumbnail_name = None
+        thumbnail_path = None
 
     tags_list = [tag.strip() for tag in tags.split(",") if tag.strip()]
     metadata_path = write_metadata(
@@ -127,7 +139,14 @@ def upload_to_youtube(
     from googleapiclient.http import MediaFileUpload
 
     results = []
+    last_upload_finished = None
     for index, video_path in enumerate(pending):
+        if last_upload_finished is not None and gap_seconds:
+            elapsed = time.monotonic() - last_upload_finished
+            remaining_gap = max(0.0, gap_seconds - elapsed)
+            if remaining_gap:
+                time.sleep(remaining_gap)
+
         number = _part_number(video_path)
         title = render_title(title_template, number=number, filename=output_dir.name)
         body = {
@@ -140,17 +159,31 @@ def upload_to_youtube(
             while response is None:
                 _, response = request.next_chunk()
             video_id = response["id"]
+
+            thumbnail_status = "not_requested"
             if thumbnail_path and thumbnail_path.exists():
-                service.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path))).execute()
-            item = {"status": "uploaded", "video_id": video_id, "url": f"https://youtu.be/{video_id}", "deleted": False}
+                last_thumbnail_error = None
+                for attempt in range(4):
+                    try:
+                        service.thumbnails().set(videoId=video_id, media_body=MediaFileUpload(str(thumbnail_path), mimetype="image/jpeg")).execute()
+                        thumbnail_status = "uploaded"
+                        last_thumbnail_error = None
+                        break
+                    except Exception as exc:
+                        last_thumbnail_error = exc
+                        if attempt < 3:
+                            time.sleep(5 * (attempt + 1))
+                if last_thumbnail_error is not None and thumbnail_status != "uploaded":
+                    thumbnail_status = f"failed: {last_thumbnail_error}"
+
+            item = {"status": "uploaded", "video_id": video_id, "url": f"https://youtu.be/{video_id}", "deleted": False, "thumbnail_status": thumbnail_status}
             if delete_after_upload and video_path.exists():
                 video_path.unlink()
                 item["deleted"] = True
             files_status[video_path.name] = item
             results.append({"filename": video_path.name, **item})
             save_status(output_dir, status)
-            if index < len(pending) - 1 and gap_seconds:
-                time.sleep(gap_seconds)
+            last_upload_finished = time.monotonic()
         except Exception as exc:
             item = {"status": "failed", "error": str(exc)}
             files_status[video_path.name] = item
