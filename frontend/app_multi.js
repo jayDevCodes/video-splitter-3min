@@ -1,6 +1,7 @@
 const $ = (selector) => document.querySelector(selector);
 const splitForm = $('#split-form');
 const uploadForm = $('#multi-upload-form');
+const accountForm = $('#account-form');
 const oldBtn = $('#show-old-upload-btn');
 const oldSection = $('#old-upload-section');
 const uploadSection = $('#upload-section');
@@ -14,7 +15,6 @@ const uploadResultBox = $('#upload-result');
 const accountTargetsBox = $('#account-targets');
 const uploadButton = $('#upload-btn');
 const splitButton = $('#split-btn');
-const showOldUploadBtn = $('#show-old-upload-btn');
 const outputFolderBox = $('#output-folder');
 const partsCountBox = $('#parts-count');
 const outputDirectoryInput = $('#upload-output-directory');
@@ -44,11 +44,7 @@ async function loadAccounts() {
 
 function renderAccounts(savedTargets = []) {
   const saved = new Set(savedTargets.map((item) => item.account_id));
-  const groups = [
-    ['youtube', 'YouTube Channels'],
-    ['facebook', 'Facebook Pages'],
-    ['instagram', 'Instagram Accounts'],
-  ];
+  const groups = [['youtube', 'YouTube Channels'], ['facebook', 'Facebook Pages'], ['instagram', 'Instagram Accounts']];
   accountTargetsBox.innerHTML = groups.map(([platform, label]) => {
     const list = accounts[platform] || [];
     const rows = list.length ? list.map((account) => `
@@ -61,10 +57,7 @@ function renderAccounts(savedTargets = []) {
 }
 
 function selectedTargets() {
-  return [...accountTargetsBox.querySelectorAll('input[data-account-id]:checked')].map((input) => ({
-    account_id: input.dataset.accountId,
-    platform: input.dataset.platform,
-  }));
+  return [...accountTargetsBox.querySelectorAll('input[data-account-id]:checked')].map((input) => ({ account_id: input.dataset.accountId, platform: input.dataset.platform }));
 }
 
 async function loadFolders() {
@@ -106,12 +99,39 @@ async function openFolder(path) {
   uploadSection.hidden = false;
 }
 
+accountForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const payload = {
+    id: $('#account-id').value.trim(),
+    platform: $('#account-platform').value,
+    name: $('#account-name').value.trim(),
+    external_id: $('#account-external-id').value.trim() || null,
+    type: $('#account-platform').value === 'facebook' ? 'page' : $('#account-platform').value === 'instagram' ? 'professional_account' : 'channel',
+    enabled: true,
+    configured: $('#account-configured').checked,
+  };
+  if (!payload.id || !payload.name) return;
+  try {
+    const response = await fetch('/api/accounts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.detail || 'Unable to save account.');
+    accountForm.reset();
+    $('#account-configured').checked = true;
+    statusBox.hidden = false;
+    statusBox.textContent = `Account saved: ${payload.name}.`;
+    await loadAccounts();
+  } catch (error) {
+    statusBox.hidden = false;
+    statusBox.textContent = error.message;
+  }
+});
+
 splitForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const file = fileInput.files?.[0];
   if (!file) return;
   splitButton.disabled = true;
-  showOldUploadBtn.disabled = true;
+  oldBtn.disabled = true;
   statusBox.hidden = false;
   statusBox.textContent = 'Generating all Shorts…';
   try {
@@ -123,8 +143,7 @@ splitForm?.addEventListener('submit', async (event) => {
     const data = await response.json();
     if (!response.ok) throw new Error(data.detail || 'Unable to generate Shorts.');
     await loadAccounts();
-    generatedFolder = data.output_directory;
-    await openFolder(generatedFolder);
+    await openFolder(data.output_directory);
     resultBox.hidden = false;
     resultBox.innerHTML = `<strong>Generation complete.</strong><br><br>Folder: <code>${escapeHtml(data.output_directory)}</code><br>Clips: ${data.parts_created}`;
     oldSection.hidden = true;
@@ -134,7 +153,7 @@ splitForm?.addEventListener('submit', async (event) => {
     statusBox.textContent = error.message;
   } finally {
     splitButton.disabled = false;
-    showOldUploadBtn.disabled = false;
+    oldBtn.disabled = false;
   }
 });
 
@@ -153,10 +172,7 @@ oldBtn?.addEventListener('click', async () => {
 });
 
 folderSelect?.addEventListener('change', async () => {
-  if (!folderSelect.value) {
-    uploadSection.hidden = true;
-    return;
-  }
+  if (!folderSelect.value) { uploadSection.hidden = true; return; }
   statusBox.hidden = false;
   statusBox.textContent = 'Restoring saved queue configuration…';
   try {
@@ -172,14 +188,9 @@ uploadForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   const targets = selectedTargets();
   if (!generatedFolder) return;
-  if (!targets.length) {
-    statusBox.textContent = 'Select at least one account target.';
-    return;
-  }
+  if (!targets.length) { statusBox.textContent = 'Select at least one account target.'; return; }
   const gap = Math.max(0, Math.min(86400, Number(gapInput.value || 0)));
-  uploadButton.disabled = true;
-  splitButton.disabled = true;
-  oldBtn.disabled = true;
+  uploadButton.disabled = true; splitButton.disabled = true; oldBtn.disabled = true;
   statusBox.hidden = false;
   statusBox.textContent = `Starting ${targets.length} account target(s). Next clip cannot start until this clip completes everywhere + ${gap}s.`;
 
@@ -205,16 +216,12 @@ uploadForm?.addEventListener('submit', async (event) => {
   } catch (error) {
     statusBox.textContent = error.message;
   } finally {
-    uploadButton.disabled = false;
-    splitButton.disabled = false;
-    oldBtn.disabled = false;
+    uploadButton.disabled = false; splitButton.disabled = false; oldBtn.disabled = false;
   }
 });
 
 function renderReport(data, gap) {
-  statusBox.textContent = data.stopped_on_error
-    ? `Queue paused after an account error. ${data.remaining_files} clip(s) remain.`
-    : `Queue run saved. ${data.processed} clip(s) processed with a mandatory ${gap}s gap.`;
+  statusBox.textContent = data.stopped_on_error ? `Queue paused after an account error. ${data.remaining_files} clip(s) remain.` : `Queue run saved. ${data.processed} clip(s) processed with a mandatory ${gap}s gap.`;
   uploadResultBox.hidden = false;
   uploadResultBox.innerHTML = (data.results || []).map((clip) => {
     const targets = Object.values(clip.targets || {}).map((target) => `<li><strong>${escapeHtml(target.account_name || target.account_id)}</strong> — ${escapeHtml(target.status)}${target.url ? ` — <a href="${escapeHtml(target.url)}" target="_blank" rel="noopener">Open</a>` : ''}${target.error ? ` — ${escapeHtml(target.error)}` : ''}</li>`).join('');
