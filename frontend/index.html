@@ -26,6 +26,20 @@
     <section id="old-upload-section" class="workflow-section old-upload-section" hidden>
       <div class="workflow-head"><div><div class="section-kicker">MULTI-PLATFORM · OLD VIDEO</div><h2>Upload an Existing Video Set</h2><p>Select the folder, then choose exact YouTube channels, Facebook Pages and Instagram accounts.</p></div><span class="workflow-badge ready-badge">RESUME</span></div>
       <div class="folder-picker"><label for="old-folder-select">Select output folder</label><select id="old-folder-select"><option value="">Loading folders…</option></select><small>Saved upload settings and previous account targets are restored.</small><div id="old-folder-empty" class="empty-state" hidden>No output folders with pending Shorts were found.</div></div>
+
+      <div class="account-manager-panel">
+        <div class="section-kicker">ACCOUNT MANAGER</div>
+        <h3>Connected Upload Accounts</h3>
+        <p>Add multiple targets. Credentials/tokens stay server-side; jobs store only account IDs.</p>
+        <form id="account-form" class="upload-form-grid">
+          <label>Platform<select id="account-platform"><option value="youtube">YouTube Channel</option><option value="facebook">Facebook Page</option><option value="instagram">Instagram Account</option></select></label>
+          <label>Account ID<input id="account-id" placeholder="yt_001 / fb_001 / ig_001" required /></label>
+          <label>Name<input id="account-name" placeholder="My Shorts Channel" required /></label>
+          <label>External ID<input id="account-external-id" placeholder="Optional channel/page/account ID" /></label>
+          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Only configured accounts appear selectable for uploads.</small></span></label>
+          <button class="secondary-btn" type="submit">Add / Update Account</button>
+        </form>
+      </div>
     </section>
 
     <section id="upload-section" class="workflow-section upload-section" hidden>
