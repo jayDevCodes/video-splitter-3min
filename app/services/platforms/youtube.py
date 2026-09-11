@@ -14,10 +14,13 @@ class YouTubeUploader(BasePlatformUploader):
     platform = "youtube"
 
     def upload(self, video_path: Path, metadata: dict[str, Any]) -> UploadResult:
+        account = metadata.get("_account", {})
         try:
             from googleapiclient.http import MediaFileUpload
 
-            service = get_youtube_service()
+            token_file = account.get("token_file")
+            token_path = Path(token_file) if token_file else None
+            service = get_youtube_service(token_path)
             youtube = metadata.get("youtube", {})
             title = render_title(
                 metadata.get("title_template", "{filename} #{number}"),
@@ -47,7 +50,6 @@ class YouTubeUploader(BasePlatformUploader):
                 _, response = request.next_chunk()
 
             video_id = response["id"]
-            thumbnail_status = "not_requested"
             thumbnail_name = metadata.get("thumbnail")
             if thumbnail_name:
                 thumbnail_path = video_path.parent / thumbnail_name
@@ -58,9 +60,8 @@ class YouTubeUploader(BasePlatformUploader):
                             videoId=video_id,
                             media_body=MediaFileUpload(str(normalized), mimetype="image/jpeg"),
                         ).execute()
-                        thumbnail_status = "uploaded"
-                    except Exception as exc:
-                        thumbnail_status = f"failed: {exc}"
+                    except Exception:
+                        pass
 
             return UploadResult(
                 status="uploaded",
