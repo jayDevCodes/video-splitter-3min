@@ -82,7 +82,11 @@ def get_accounts_by_platform() -> dict[str, list[dict[str, Any]]]:
     for account in list_accounts():
         platform = account.get("platform")
         if platform in result and account.get("enabled", True):
-            public = {k: v for k, v in account.items() if k != "token_file"}
+            public = {
+                k: v
+                for k, v in account.items()
+                if k not in {"token_file", "credential_ref"}
+            }
             result[platform].append(public)
     return result
 
