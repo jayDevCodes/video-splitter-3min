@@ -3,12 +3,13 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from fastapi import APIRouter, Form, HTTPException, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Form, HTTPException, UploadFile, File
 
 from app.config import OUTPUT_DIR
 from app.services.account_manager import get_accounts_by_platform, resolve_targets
+from app.services.jobs.job_manager import job_manager
 from app.services.metadata_manager import load_metadata
-from app.services.multi_platform_uploader import run_multi_platform_upload
+from app.services.upload.runner import run_upload_job
 from app.services.upload_manager import discover_upload_folders, folder_summary
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
@@ -61,6 +62,7 @@ def get_folder(output_directory: str):
 
 @router.post("/start")
 def start_upload(
+    background_tasks: BackgroundTasks,
     output_directory: str = Form(...),
     targets: str = Form(...),
     title_template: str = Form("{filename} #{number}"),
@@ -107,27 +109,38 @@ def start_upload(
     job_path = directory / "_config" / "upload_job.json"
     job_path.parent.mkdir(parents=True, exist_ok=True)
     target_snapshot = [{"account_id": a["id"], "platform": a["platform"], "name": a["name"]} for a in accounts]
+    job_id = job_manager.create(
+        "upload",
+        {
+            "output_directory": str(directory),
+            "targets": target_snapshot,
+            "gap_seconds": gap_seconds,
+        },
+    )
     job_path.write_text(json.dumps({
-        "status": "running",
+        "status": "queued",
+        "job_id": job_id,
         "targets": target_snapshot,
         "gap_seconds": gap_seconds,
         "gap_rule": "minimum delay starts after every selected account finishes the previous clip",
         "delete_after_upload": delete_after_upload,
     }, indent=2, ensure_ascii=False), encoding="utf-8")
 
-    result = run_multi_platform_upload(
+    background_tasks.add_task(
+        run_upload_job,
+        job_id,
         directory,
         targets=target_list,
         metadata=metadata,
         gap_seconds=gap_seconds,
         delete_after_upload=delete_after_upload,
+        job_path=job_path,
     )
 
-    job_path.write_text(json.dumps({
-        "status": "failed" if result.get("stopped_on_error") else ("complete" if result.get("remaining_files") == 0 else "paused"),
+    return {
+        "job_id": job_id,
+        "status": "queued",
         "targets": target_snapshot,
         "gap_seconds": gap_seconds,
-        "gap_rule": "minimum delay starts after every selected account finishes the previous clip",
-        "delete_after_upload": delete_after_upload,
-    }, indent=2, ensure_ascii=False), encoding="utf-8")
-    return result
+        "message": "Upload job queued. Subscribe to the live job events stream for progress.",
+    }
