@@ -1,7 +1,13 @@
 from pathlib import Path
 import os
 
+from dotenv import load_dotenv
+
 BASE_DIR = Path(__file__).resolve().parent.parent
+# Load local development configuration before reading environment variables.
+# The real .env file is ignored by Git and must never contain committed secrets.
+load_dotenv(BASE_DIR / ".env")
+
 INPUT_DIR = BASE_DIR / "input"
 OUTPUT_DIR = BASE_DIR / "output"
 TEMP_DIR = BASE_DIR / "temp"
@@ -34,3 +40,15 @@ META_OAUTH_SCOPES = [
 
 for directory in (INPUT_DIR, OUTPUT_DIR, TEMP_DIR, CREDENTIALS_DIR, TOKENS_DIR):
     directory.mkdir(parents=True, exist_ok=True)
+
+
+def missing_meta_oauth_config() -> list[str]:
+    """Return required Meta OAuth settings that are currently missing."""
+    missing = []
+    if not META_APP_ID:
+        missing.append("META_APP_ID")
+    if not META_APP_SECRET:
+        missing.append("META_APP_SECRET")
+    if not META_OAUTH_REDIRECT_URI:
+        missing.append("META_OAUTH_REDIRECT_URI")
+    return missing
