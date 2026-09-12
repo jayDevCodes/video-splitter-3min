@@ -1,5 +1,5 @@
 import { ProgressManager } from './progress/progress_manager.js';
-import { FacebookOAuthManager } from './accounts/facebook_oauth.js';
+import { ManagedFacebookManager } from './accounts/managed_facebook.js';
 
 const $ = (selector) => document.querySelector(selector);
 const splitForm = $('#split-form');
@@ -41,7 +41,7 @@ let generatedFolder = '';
 let accounts = { youtube: [], facebook: [], instagram: [] };
 const progress = new ProgressManager(liveProgressBox);
 
-const facebookOAuth = new FacebookOAuthManager({
+const facebookOAuth = new ManagedFacebookManager({
   connectButton: $('#connect-facebook-btn'),
   platformSelect: accountPlatform,
   statusBox: $('#oauth-status'),
@@ -140,7 +140,7 @@ accountForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (accountPlatform.value === 'facebook') {
     statusBox.hidden = false;
-    statusBox.textContent = 'Use Connect Facebook & Select Pages for Facebook accounts.';
+    statusBox.textContent = 'Use Connect Facebook to add Facebook Pages.';
     return;
   }
   const payload = {

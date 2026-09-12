@@ -4,7 +4,7 @@ from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from app.config import FRONTEND_DIR, missing_meta_oauth_config
+from app.config import FRONTEND_DIR, managed_facebook_configured, missing_meta_oauth_config
 from app.routes.video import router as video_router
 from app.routes.youtube import router as youtube_router
 from app.routes.upload import router as upload_router
@@ -14,21 +14,20 @@ from app.services.account_manager import ensure_legacy_youtube_account
 
 logger = logging.getLogger(__name__)
 
-# Keep the legacy YouTube token account bootstrap in application startup,
-# rather than inside the account registry itself. This keeps tests isolated.
 ensure_legacy_youtube_account()
+
+if managed_facebook_configured():
+    logger.info("Managed Facebook connection: configured.")
+else:
+    logger.info("Managed Facebook connection: not configured. Add UPLOAD_POST_API_KEY to .env to enable it.")
 
 missing_meta = missing_meta_oauth_config()
 if missing_meta:
-    logger.warning(
-        "Meta OAuth: NOT CONFIGURED. Missing: %s. "
-        "Create a local .env file from .env.example before using Facebook Connect.",
-        ", ".join(missing_meta),
-    )
+    logger.info("Direct Meta OAuth: optional/not configured. Missing: %s", ", ".join(missing_meta))
 else:
-    logger.info("Meta OAuth: configured for Facebook account connection.")
+    logger.info("Direct Meta OAuth: configured as an optional fallback.")
 
-app = FastAPI(title="Video Splitter 3 Min", version="1.4.0")
+app = FastAPI(title="Video Splitter 3 Min", version="1.5.0")
 app.include_router(video_router)
 app.include_router(youtube_router)
 app.include_router(upload_router)

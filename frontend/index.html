@@ -31,15 +31,15 @@
       <div class="account-manager-panel">
         <div class="section-kicker">ACCOUNT MANAGER</div>
         <h3>Connected Upload Accounts</h3>
-        <p>Connect accounts directly from this screen. OAuth credentials stay server-side and upload jobs store only account IDs.</p>
+        <p>Connect accounts directly from this screen. Facebook login is handled by the managed social connection provider; no Meta App ID or App Secret is entered here.</p>
         <form id="account-form" class="upload-form-grid">
           <label>Platform<select id="account-platform"><option value="facebook">Facebook Page</option><option value="youtube">YouTube Channel</option><option value="instagram">Instagram Account</option></select></label>
           <label>Account ID<input id="account-id" placeholder="yt_001 / ig_001" required /></label>
           <label>Name<input id="account-name" placeholder="My Shorts Channel" required /></label>
           <label>External ID<input id="account-external-id" placeholder="Optional channel/account ID" /></label>
-          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Manual accounts can be enabled for testing. OAuth-connected accounts are marked configured automatically.</small></span></label>
+          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Manual accounts can be enabled for testing. Facebook Pages are configured automatically after connection.</small></span></label>
           <div class="account-connect-actions">
-            <button id="connect-facebook-btn" class="primary-btn" type="button">🔵 Connect Facebook Business &amp; Select Pages</button>
+            <button id="connect-facebook-btn" class="primary-btn" type="button">🔵 Connect Facebook Page</button>
             <button id="manual-account-btn" class="secondary-btn" type="submit">Add / Update Account Manually</button>
           </div>
         </form>

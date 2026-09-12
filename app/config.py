@@ -4,8 +4,6 @@ import os
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
-# Load local development configuration before reading environment variables.
-# The real .env file is ignored by Git and must never contain committed secrets.
 load_dotenv(BASE_DIR / ".env")
 
 INPUT_DIR = BASE_DIR / "input"
@@ -23,10 +21,7 @@ FFMPEG_BIN = os.getenv("FFMPEG_BIN", "ffmpeg")
 FFPROBE_BIN = os.getenv("FFPROBE_BIN", "ffprobe")
 UPLOAD_WATCH_INTERVAL = int(os.getenv("UPLOAD_WATCH_INTERVAL", "15"))
 
-# Meta / Facebook Login for Business configuration.
-# Keep the app secret server-side only. CONFIG_ID is optional so an existing
-# development setup can continue to use the legacy scope-based dialog until
-# the Meta Login configuration is created.
+# Direct Meta integration remains available for development, but is optional.
 META_APP_ID = os.getenv("META_APP_ID", "").strip()
 META_APP_SECRET = os.getenv("META_APP_SECRET", "").strip()
 META_GRAPH_API_VERSION = os.getenv("META_GRAPH_API_VERSION", "v26.0").strip()
@@ -42,12 +37,16 @@ META_OAUTH_SCOPES = [
     "pages_manage_posts",
 ]
 
+# Managed social provider. This is the user-facing, no-Meta-credentials path.
+UPLOAD_POST_API_BASE = os.getenv("UPLOAD_POST_API_BASE", "https://api.upload-post.com").strip()
+UPLOAD_POST_API_KEY = os.getenv("UPLOAD_POST_API_KEY", "").strip()
+UPLOAD_POST_PROFILE = os.getenv("UPLOAD_POST_PROFILE", "video_splitter_local").strip()
+
 for directory in (INPUT_DIR, OUTPUT_DIR, TEMP_DIR, CREDENTIALS_DIR, TOKENS_DIR):
     directory.mkdir(parents=True, exist_ok=True)
 
 
 def missing_meta_oauth_config() -> list[str]:
-    """Return required Meta OAuth settings that are currently missing."""
     missing = []
     if not META_APP_ID:
         missing.append("META_APP_ID")
@@ -56,3 +55,7 @@ def missing_meta_oauth_config() -> list[str]:
     if not META_OAUTH_REDIRECT_URI:
         missing.append("META_OAUTH_REDIRECT_URI")
     return missing
+
+
+def managed_facebook_configured() -> bool:
+    return bool(UPLOAD_POST_API_KEY and UPLOAD_POST_PROFILE)
