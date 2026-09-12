@@ -16,6 +16,7 @@ from app.config import (
     META_APP_ID,
     META_APP_SECRET,
     META_GRAPH_API_VERSION,
+    META_OAUTH_CONFIG_ID,
     META_OAUTH_REDIRECT_URI,
     META_OAUTH_SCOPES,
     TOKENS_DIR,
@@ -89,12 +90,24 @@ def start_flow() -> dict[str, str]:
         "client_id": META_APP_ID,
         "redirect_uri": META_OAUTH_REDIRECT_URI,
         "state": state,
-        "scope": ",".join(META_OAUTH_SCOPES),
         "response_type": "code",
+        "display": "popup",
     }
+
+    if META_OAUTH_CONFIG_ID:
+        # Modern Facebook Login for Business flow. The config controls the
+        # requested business/Page permissions in Meta, so we intentionally do
+        # not send the legacy scope list when CONFIG_ID is present.
+        params["config_id"] = META_OAUTH_CONFIG_ID
+    else:
+        # Backward-compatible development mode for apps that have not yet
+        # created a Login for Business configuration in Meta.
+        params["scope"] = ",".join(META_OAUTH_SCOPES)
+
     return {
         "flow_id": state,
         "login_url": f"{_DIALOG_BASE}/{META_GRAPH_API_VERSION}/dialog/oauth?{urlencode(params)}",
+        "mode": "facebook_login_for_business" if META_OAUTH_CONFIG_ID else "legacy_scope_oauth",
     }
 
 

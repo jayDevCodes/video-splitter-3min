@@ -33,7 +33,7 @@ export class FacebookOAuthManager {
     if (this.starting) return;
     this.starting = true;
     if (this.connectButton) this.connectButton.disabled = true;
-    this.setStatus('Starting secure Facebook connection…');
+    this.setStatus('Starting secure Facebook Business connection…');
     if (this.pagePicker) this.pagePicker.hidden = true;
 
     // Open synchronously from the user's click so browsers do not classify
@@ -65,7 +65,11 @@ export class FacebookOAuthManager {
         throw new Error('Facebook login window was closed before authorization started.');
       }
       this.popup.location.href = data.login_url;
-      this.setStatus('Complete Facebook authorization in the new window…');
+      this.setStatus(
+        data.mode === 'facebook_login_for_business'
+          ? 'Complete Facebook Login for Business authorization in the new window…'
+          : 'Complete Facebook authorization in the new window…'
+      );
     } catch (error) {
       try {
         if (this.popup && !this.popup.closed) this.popup.close();

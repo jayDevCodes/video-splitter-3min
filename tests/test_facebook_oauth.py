@@ -15,16 +15,30 @@ def test_start_flow_requires_meta_configuration(monkeypatch):
         raise AssertionError("Missing Meta configuration should fail")
 
 
-def test_start_flow_builds_oauth_url(monkeypatch):
+def test_start_flow_builds_legacy_oauth_url(monkeypatch):
     monkeypatch.setattr(meta_facebook, "META_APP_ID", "123")
     monkeypatch.setattr(meta_facebook, "META_APP_SECRET", "secret")
     monkeypatch.setattr(meta_facebook, "META_OAUTH_REDIRECT_URI", "http://localhost:8000/api/oauth/facebook/callback")
+    monkeypatch.setattr(meta_facebook, "META_OAUTH_CONFIG_ID", "")
     monkeypatch.setattr(meta_facebook, "META_OAUTH_SCOPES", ["pages_show_list", "pages_manage_posts"])
     result = meta_facebook.start_flow()
     assert result["flow_id"]
     assert "dialog/oauth" in result["login_url"]
     assert "client_id=123" in result["login_url"]
     assert "pages_manage_posts" in result["login_url"]
+    assert result["mode"] == "legacy_scope_oauth"
+
+
+def test_start_flow_uses_login_for_business_config(monkeypatch):
+    monkeypatch.setattr(meta_facebook, "META_APP_ID", "123")
+    monkeypatch.setattr(meta_facebook, "META_APP_SECRET", "secret")
+    monkeypatch.setattr(meta_facebook, "META_OAUTH_REDIRECT_URI", "http://localhost:8000/api/oauth/facebook/callback")
+    monkeypatch.setattr(meta_facebook, "META_OAUTH_CONFIG_ID", "987654321")
+    monkeypatch.setattr(meta_facebook, "META_OAUTH_SCOPES", ["pages_show_list", "pages_manage_posts"])
+    result = meta_facebook.start_flow()
+    assert "config_id=987654321" in result["login_url"]
+    assert "scope=" not in result["login_url"]
+    assert result["mode"] == "facebook_login_for_business"
 
 
 def test_complete_flow_saves_page_credentials(tmp_path, monkeypatch):
