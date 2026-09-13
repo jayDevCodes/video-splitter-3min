@@ -10,6 +10,7 @@ from app.routes.youtube import router as youtube_router
 from app.routes.upload import router as upload_router
 from app.routes.accounts import router as accounts_router
 from app.routes.oauth import router as oauth_router
+from app.routes.progress import router as progress_router
 from app.services.account_manager import ensure_legacy_youtube_account
 
 logger = logging.getLogger(__name__)
@@ -29,6 +30,7 @@ else:
 
 app = FastAPI(title="Video Splitter 3 Min", version="1.5.0")
 app.include_router(video_router)
+app.include_router(progress_router)
 app.include_router(youtube_router)
 app.include_router(upload_router)
 app.include_router(accounts_router)
