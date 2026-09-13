@@ -9,7 +9,19 @@ from app.models.video import VideoInfo
 OUTPUT_SIZES = {
     "vertical": (1080, 1920),
     "horizontal": (1920, 1080),
+    "vertical_full_frame": (1080, 1920),
 }
+
+
+def _escape_drawtext_text(value: str) -> str:
+    """Escape text for FFmpeg's drawtext filter expression."""
+    return (
+        value.replace("\\", "\\\\")
+        .replace(":", "\\:")
+        .replace("'", "\\'")
+        .replace("%", "\\%")
+        .replace("\n", "\\n")
+    )
 
 
 def split_video(
@@ -23,7 +35,7 @@ def split_video(
     if chunk_seconds <= 0:
         raise ValueError("chunk_seconds must be greater than zero")
     if orientation not in OUTPUT_SIZES:
-        raise ValueError("orientation must be 'vertical' or 'horizontal'")
+        raise ValueError("orientation must be 'vertical', 'horizontal', or 'vertical_full_frame'")
 
     width, height = OUTPUT_SIZES[orientation]
     parts = max(1, math.ceil(info.duration / chunk_seconds))
@@ -40,10 +52,26 @@ def split_video(
         if progress_callback:
             progress_callback("part_started", index + 1, parts)
 
-        vf = (
-            f"scale={width}:{height}:force_original_aspect_ratio=increase:"
-            f"force_divisible_by=2,crop={width}:{height}"
-        )
+        if orientation == "vertical_full_frame":
+            # Preserve every pixel of the source video. The clip is scaled to fit
+            # inside the 1080x1920 canvas, then centered with empty top/bottom
+            # space instead of cropping/zooming the source.
+            part_label = _escape_drawtext_text(f"Part {index + 1}")
+            cta_label = _escape_drawtext_text("Like and comment")
+            vf = (
+                f"scale={width}:{height}:force_original_aspect_ratio=decrease:"
+                f"force_divisible_by=2,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,"
+                f"drawtext=text='{part_label}':fontcolor=white:fontsize=72:"
+                f"x=(w-text_w)/2:y=80:shadowcolor=black@0.8:shadowx=2:shadowy=2,"
+                f"drawtext=text='{cta_label}':fontcolor=white:fontsize=58:"
+                f"x=(w-text_w)/2:y=h-text_h-80:shadowcolor=black@0.8:shadowx=2:shadowy=2"
+            )
+        else:
+            vf = (
+                f"scale={width}:{height}:force_original_aspect_ratio=increase:"
+                f"force_divisible_by=2,crop={width}:{height}"
+            )
+
         command = [
             FFMPEG_BIN,
             "-hide_banner",
