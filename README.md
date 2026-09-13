@@ -13,6 +13,7 @@ A local FastAPI + FFmpeg tool that uploads one video, splits the complete video 
 - **Vertical Full Frame output:** `1080 × 1920` (9:16), preserves the complete source frame without crop/zoom, centers it on a black canvas, and adds `Part N` at the top plus `Like and comment` at the bottom.
 - Standard vertical/horizontal resizing preserves aspect ratio; excess area is cropped instead of stretching.
 - Vertical Full Frame resizing preserves the complete source and uses padding instead of cropping.
+- Vertical Full Frame text is rendered with Pillow as a transparent overlay, so it does not require FFmpeg's optional `drawtext`/libfreetype filter.
 - Ordered output names: `part_001.mp4`, `part_002.mp4`, etc.
 - Every source video gets its own output folder.
 - Every output folder contains one metadata configuration shared by all its Shorts.
@@ -126,6 +127,7 @@ Environment variables:
 - `FFMPEG_BIN` — FFmpeg executable/path (`ffmpeg`).
 - `FFPROBE_BIN` — FFprobe executable/path (`ffprobe`).
 - `UPLOAD_WATCH_INTERVAL` — watcher interval in seconds (`15`).
+- `VIDEO_TEXT_FONT` — optional font file path used for Vertical Full Frame text rendering.
 
 ## Notes
 
