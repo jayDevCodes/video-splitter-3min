@@ -1,9 +1,14 @@
-from pathlib import Path
+from __future__ import annotations
+
 import math
 import subprocess
+import tempfile
 from collections.abc import Callable
+from pathlib import Path
+
 from app.config import FFMPEG_BIN
 from app.models.video import VideoInfo
+from app.services.text_overlay import create_short_overlay
 
 
 OUTPUT_SIZES = {
@@ -13,15 +18,27 @@ OUTPUT_SIZES = {
 }
 
 
-def _escape_drawtext_text(value: str) -> str:
-    """Escape text for FFmpeg's drawtext filter expression."""
+def _build_video_filter(width: int, height: int, orientation: str) -> str:
+    if orientation == "vertical_full_frame":
+        return (
+            f"scale={width}:{height}:force_original_aspect_ratio=decrease:"
+            f"force_divisible_by=2,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black"
+        )
+
     return (
-        value.replace("\\", "\\\\")
-        .replace(":", "\\:")
-        .replace("'", "\\'")
-        .replace("%", "\\%")
-        .replace("\n", "\\n")
+        f"scale={width}:{height}:force_original_aspect_ratio=increase:"
+        f"force_divisible_by=2,crop={width}:{height}"
     )
+
+
+def _run_ffmpeg(
+    command: list[str],
+    part_number: int,
+) -> None:
+    result = subprocess.run(command, capture_output=True, text=True, check=False)
+    if result.returncode != 0:
+        error = result.stderr.strip() or f"FFmpeg failed on part {part_number}."
+        raise RuntimeError(error)
 
 
 def split_video(
@@ -35,7 +52,9 @@ def split_video(
     if chunk_seconds <= 0:
         raise ValueError("chunk_seconds must be greater than zero")
     if orientation not in OUTPUT_SIZES:
-        raise ValueError("orientation must be 'vertical', 'horizontal', or 'vertical_full_frame'")
+        raise ValueError(
+            "orientation must be 'vertical', 'horizontal', or 'vertical_full_frame'"
+        )
 
     width, height = OUTPUT_SIZES[orientation]
     parts = max(1, math.ceil(info.duration / chunk_seconds))
@@ -48,58 +67,96 @@ def split_video(
         if duration <= 0.05:
             continue
 
-        output_path = output_dir / f"part_{index + 1:03d}.mp4"
+        part_number = index + 1
+        output_path = output_dir / f"part_{part_number:03d}.mp4"
         if progress_callback:
-            progress_callback("part_started", index + 1, parts)
+            progress_callback("part_started", part_number, parts)
 
-        if orientation == "vertical_full_frame":
-            # Preserve every pixel of the source video. The clip is scaled to fit
-            # inside the 1080x1920 canvas, then centered with empty top/bottom
-            # space instead of cropping/zooming the source.
-            part_label = _escape_drawtext_text(f"Part {index + 1}")
-            cta_label = _escape_drawtext_text("Like and comment")
-            vf = (
-                f"scale={width}:{height}:force_original_aspect_ratio=decrease:"
-                f"force_divisible_by=2,pad={width}:{height}:(ow-iw)/2:(oh-ih)/2:color=black,"
-                f"drawtext=text='{part_label}':fontcolor=white:fontsize=72:"
-                f"x=(w-text_w)/2:y=80:shadowcolor=black@0.8:shadowx=2:shadowy=2,"
-                f"drawtext=text='{cta_label}':fontcolor=white:fontsize=58:"
-                f"x=(w-text_w)/2:y=h-text_h-80:shadowcolor=black@0.8:shadowx=2:shadowy=2"
-            )
-        else:
-            vf = (
-                f"scale={width}:{height}:force_original_aspect_ratio=increase:"
-                f"force_divisible_by=2,crop={width}:{height}"
-            )
-
+        base_filter = _build_video_filter(width, height, orientation)
         command = [
             FFMPEG_BIN,
             "-hide_banner",
-            "-loglevel", "error",
-            "-ss", f"{start:.3f}",
-            "-i", str(input_path),
-            "-t", f"{duration:.3f}",
-            "-map", "0:v:0",
-            "-map", "0:a?",
-            "-vf", vf,
-            "-sws_flags", "lanczos",
-            "-c:v", "libx264",
-            "-preset", "veryfast",
-            "-crf", "18",
-            "-pix_fmt", "yuv420p",
-            "-c:a", "aac",
-            "-b:a", "192k",
-            "-movflags", "+faststart",
-            "-avoid_negative_ts", "make_zero",
-            str(output_path),
+            "-loglevel",
+            "error",
+            "-ss",
+            f"{start:.3f}",
+            "-i",
+            str(input_path),
+            "-t",
+            f"{duration:.3f}",
         ]
-        result = subprocess.run(command, capture_output=True, text=True, check=False)
-        if result.returncode != 0:
-            for path in created:
-                path.unlink(missing_ok=True)
-            raise RuntimeError(result.stderr.strip() or f"FFmpeg failed on part {index + 1}.")
+
+        overlay_path: Path | None = None
+        temp_dir: tempfile.TemporaryDirectory[str] | None = None
+        try:
+            if orientation == "vertical_full_frame":
+                temp_dir = tempfile.TemporaryDirectory(prefix="video-splitter-overlay-")
+                overlay_path = create_short_overlay(
+                    Path(temp_dir.name) / "text_overlay.png",
+                    part_number=part_number,
+                )
+                filter_complex = (
+                    f"[0:v]{base_filter}[base];"
+                    f"[1:v]format=rgba[overlay];"
+                    f"[base][overlay]overlay=0:0:shortest=1[v]"
+                )
+                command.extend(
+                    [
+                        "-loop",
+                        "1",
+                        "-i",
+                        str(overlay_path),
+                        "-filter_complex",
+                        filter_complex,
+                        "-map",
+                        "[v]",
+                        "-map",
+                        "0:a?",
+                    ]
+                )
+            else:
+                command.extend(
+                    [
+                        "-map",
+                        "0:v:0",
+                        "-map",
+                        "0:a?",
+                        "-vf",
+                        base_filter,
+                    ]
+                )
+
+            command.extend(
+                [
+                    "-sws_flags",
+                    "lanczos",
+                    "-c:v",
+                    "libx264",
+                    "-preset",
+                    "veryfast",
+                    "-crf",
+                    "18",
+                    "-pix_fmt",
+                    "yuv420p",
+                    "-c:a",
+                    "aac",
+                    "-b:a",
+                    "192k",
+                    "-movflags",
+                    "+faststart",
+                    "-avoid_negative_ts",
+                    "make_zero",
+                    str(output_path),
+                ]
+            )
+
+            _run_ffmpeg(command, part_number)
+        finally:
+            if temp_dir is not None:
+                temp_dir.cleanup()
+
         created.append(output_path)
         if progress_callback:
-            progress_callback("part_completed", index + 1, parts)
+            progress_callback("part_completed", part_number, parts)
 
     return created
