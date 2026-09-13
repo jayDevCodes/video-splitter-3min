@@ -42,14 +42,17 @@ async def start_split_job(
     background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     chunk_seconds: int = DEFAULT_CHUNK_SECONDS,
-    orientation: str = Query("vertical", description="Output format: vertical or horizontal"),
+    orientation: str = Query(
+        "vertical",
+        description="Output format: vertical, horizontal, or vertical_full_frame",
+    ),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Please choose a video file.")
     if chunk_seconds <= 0 or chunk_seconds > 3600:
         raise HTTPException(status_code=400, detail="chunk_seconds must be between 1 and 3600 seconds.")
     if orientation not in OUTPUT_SIZES:
-        raise HTTPException(status_code=400, detail="orientation must be 'vertical' or 'horizontal'.")
+        raise HTTPException(status_code=400, detail="orientation must be 'vertical', 'horizontal', or 'vertical_full_frame'.")
 
     input_path = await asyncio.to_thread(save_upload, file, file.filename)
     _validate_upload_size(input_path)
@@ -72,14 +75,17 @@ async def start_split_job(
 async def split_uploaded_video(
     file: UploadFile = File(...),
     chunk_seconds: int = DEFAULT_CHUNK_SECONDS,
-    orientation: str = Query("vertical", description="Output format: vertical or horizontal"),
+    orientation: str = Query(
+        "vertical",
+        description="Output format: vertical, horizontal, or vertical_full_frame",
+    ),
 ):
     if not file.filename:
         raise HTTPException(status_code=400, detail="Please choose a video file.")
     if chunk_seconds <= 0 or chunk_seconds > 3600:
         raise HTTPException(status_code=400, detail="chunk_seconds must be between 1 and 3600 seconds.")
     if orientation not in OUTPUT_SIZES:
-        raise HTTPException(status_code=400, detail="orientation must be 'vertical' or 'horizontal'.")
+        raise HTTPException(status_code=400, detail="orientation must be 'vertical', 'horizontal', or 'vertical_full_frame'.")
 
     input_path = None
     try:
