@@ -10,7 +10,9 @@ A local FastAPI + FFmpeg tool that uploads one video, splits the complete video 
 - Custom chunk length is supported.
 - **Vertical output:** `1080 × 1920` (9:16), suitable for YouTube Shorts.
 - **Horizontal output:** `1920 × 1080` (16:9).
-- Resizing preserves aspect ratio; excess area is cropped instead of stretching.
+- **Vertical Full Frame output:** `1080 × 1920` (9:16), preserves the complete source frame without crop/zoom, centers it on a black canvas, and adds `Part N` at the top plus `Like and comment` at the bottom.
+- Standard vertical/horizontal resizing preserves aspect ratio; excess area is cropped instead of stretching.
+- Vertical Full Frame resizing preserves the complete source and uses padding instead of cropping.
 - Ordered output names: `part_001.mp4`, `part_002.mp4`, etc.
 - Every source video gets its own output folder.
 - Every output folder contains one metadata configuration shared by all its Shorts.
@@ -97,6 +99,12 @@ The upload watcher starts automatically with `run.py` and checks the `output/` d
 ## API
 
 `POST /api/video/split?chunk_seconds=180&orientation=vertical` with multipart field `file`.
+
+Supported `orientation` values:
+
+- `vertical` — 1080×1920, existing crop-to-fill Shorts mode.
+- `horizontal` — 1920×1080, existing horizontal mode.
+- `vertical_full_frame` — 1080×1920, no crop/zoom; complete source frame is centered with padding and text overlays.
 
 Additional form fields:
 
