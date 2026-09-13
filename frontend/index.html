@@ -17,7 +17,7 @@
       <div class="workflow-head"><div><div class="section-kicker">STEP 01 · VIDEO GENERATION</div><h2>Create all Shorts</h2><p>Choose a source video, split length and output format.</p></div><span class="workflow-badge">GENERATE</span></div>
       <form id="split-form">
         <label class="dropzone" for="video-file"><input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required /><span class="upload-icon">↑</span><span class="drop-title">Choose your source video</span><span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span></label>
-        <div class="row settings-row"><label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label><label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16)</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option></select></label></div>
+        <div class="row settings-row"><label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label><label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16) — Crop to fill</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option><option value="vertical_full_frame">Vertical Full Frame — 1080 × 1920 (9:16) — No Crop + Part + Like &amp; Comment</option></select></label></div>
         <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
       </form>
     </section>
