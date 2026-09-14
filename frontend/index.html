@@ -3,74 +3,65 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Video Splitter • Multi-Platform Shorts</title>
+  <title>Video Splitter 3 Min</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <link rel="stylesheet" href="/static/progress/progress.css" />
 </head>
 <body>
   <main class="card">
     <div class="eyebrow">LOCAL VIDEO TOOL</div>
-    <h1>Generate Shorts first.</h1>
-    <p class="subtitle">Create all video parts first. Upload new or older generated Shorts separately.</p>
+    <h1>Split your video.</h1>
+    <p class="subtitle">Upload a video, choose the part length and output format, then save all generated clips locally.</p>
 
-    <section id="generation-section" class="workflow-section generation-section">
-      <div class="workflow-head"><div><div class="section-kicker">STEP 01 · VIDEO GENERATION</div><h2>Create all Shorts</h2><p>Choose a source video, split length and output format.</p></div><span class="workflow-badge">GENERATE</span></div>
-      <form id="split-form">
-        <label class="dropzone" for="video-file"><input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required /><span class="upload-icon">↑</span><span class="drop-title">Choose your source video</span><span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span></label>
-        <div class="row settings-row"><label>Part length (seconds)<input id="chunk-seconds" type="number" value="180" min="1" max="3600" /></label><label>Output format<select id="orientation"><option value="vertical" selected>Vertical — 1080 × 1920 (9:16) — Crop to fill</option><option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option><option value="vertical_full_frame">Vertical Full Frame — 1080 × 1920 (9:16) — No Crop + Part + Like &amp; Comment</option></select></label></div>
-        <button id="split-btn" class="primary-btn" type="submit">Generate All Shorts</button>
-      </form>
-    </section>
-
-    <div class="upload-old-action"><button id="show-old-upload-btn" class="secondary-btn action-btn" type="button">Upload Old Video</button></div>
-
-    <section id="old-upload-section" class="workflow-section old-upload-section" hidden>
-      <div class="workflow-head"><div><div class="section-kicker">MULTI-PLATFORM · OLD VIDEO</div><h2>Upload an Existing Video Set</h2><p>Select the folder, then choose exact YouTube channels, Facebook Pages and Instagram accounts.</p></div><span class="workflow-badge ready-badge">RESUME</span></div>
-      <div class="folder-picker"><label for="old-folder-select">Select output folder</label><select id="old-folder-select"><option value="">Loading folders…</option></select><small>Saved upload settings and previous account targets are restored.</small><div id="old-folder-empty" class="empty-state" hidden>No output folders with pending Shorts were found.</div></div>
-
-      <div class="account-manager-panel">
-        <div class="section-kicker">ACCOUNT MANAGER</div>
-        <h3>Connected Upload Accounts</h3>
-        <p>Connect accounts directly from this screen. Facebook login is handled by the managed social connection provider; no Meta App ID or App Secret is entered here.</p>
-        <form id="account-form" class="upload-form-grid">
-          <label>Platform<select id="account-platform"><option value="facebook">Facebook Page</option><option value="youtube">YouTube Channel</option><option value="instagram">Instagram Account</option></select></label>
-          <label>Account ID<input id="account-id" placeholder="yt_001 / ig_001" required /></label>
-          <label>Name<input id="account-name" placeholder="My Shorts Channel" required /></label>
-          <label>External ID<input id="account-external-id" placeholder="Optional channel/account ID" /></label>
-          <label class="upload-toggle-row"><input id="account-configured" type="checkbox" checked /><span class="toggle-copy"><strong>Configured</strong><small>Manual accounts can be enabled for testing. Facebook Pages are configured automatically after connection.</small></span></label>
-          <div class="account-connect-actions">
-            <button id="connect-facebook-btn" class="primary-btn" type="button">🔵 Connect Facebook Page</button>
-            <button id="manual-account-btn" class="secondary-btn" type="submit">Add / Update Account Manually</button>
-          </div>
-        </form>
-        <div id="oauth-status" class="oauth-status" hidden></div>
-        <div id="facebook-page-picker" class="oauth-page-picker" hidden></div>
-      </div>
-    </section>
-
-    <section id="upload-section" class="workflow-section upload-section" hidden>
-      <div class="workflow-head"><div><div class="section-kicker">UPLOAD TARGETS</div><h2>Choose Accounts</h2><p>Select one or many accounts inside each platform. Every selected account receives every selected clip.</p></div><span class="workflow-badge ready-badge">TARGETS</span></div>
-      <div class="queue-strip"><div><span class="queue-label">FOLDER</span><strong id="output-folder">—</strong></div><div><span class="queue-label">REMAINING</span><strong id="parts-count">0</strong></div><div><span class="queue-label">ORDER</span><strong>part_001 → part_002 → …</strong></div></div>
-      <form id="multi-upload-form">
-        <input id="upload-output-directory" type="hidden" />
-        <div id="account-targets" class="account-targets"></div>
-        <div class="upload-form-grid">
-          <label>Title<input id="upload-title-template" type="text" value="{filename} #{number}" /></label>
-          <label>Gap between clips (seconds)<input id="upload-gap" type="number" value="60" min="0" max="86400" /><small>Mandatory gap starts only after every selected account finishes the previous clip.</small></label>
-          <label class="full-width">Description<textarea id="upload-description" rows="6" placeholder="Description for every selected target..."></textarea></label>
-          <label>Tags<input id="upload-tags" type="text" value="shorts,youtube" /></label>
-          <label>YouTube visibility<select id="upload-privacy"><option value="private">Private</option><option value="unlisted">Unlisted</option><option value="public">Public</option></select></label>
-          <label>YouTube category<input id="upload-category-id" type="text" value="22" /></label>
-          <label>Thumbnail<input id="upload-thumbnail" type="file" accept="image/jpeg,image/png,image/webp" /></label>
+    <section class="workflow-section generation-section">
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">VIDEO SPLITTER</div>
+          <h2>Create video parts</h2>
+          <p>No social accounts, uploads or external platform connections.</p>
         </div>
-        <label class="upload-toggle-row"><input id="delete-after-upload" type="checkbox" checked /><span class="toggle-ui"></span><span class="toggle-copy"><strong>Delete local clip after all selected targets succeed</strong><small>Failed targets keep the clip for retry.</small></span></label>
-        <div class="upload-actions"><div class="upload-rule"><strong>Clip-first queue</strong><span>Clip 1 → all selected accounts → mandatory gap → Clip 2.</span></div><button id="upload-btn" class="primary-btn youtube-btn" type="submit">Start Multi-Account Upload</button></div>
+        <span class="workflow-badge">SPLIT</span>
+      </div>
+
+      <form id="split-form">
+        <label class="dropzone" for="video-file">
+          <input id="video-file" name="file" type="file" accept="video/*,.mkv,.avi,.webm,.m4v,.ts" required />
+          <span class="upload-icon">↑</span>
+          <span class="drop-title">Choose your source video</span>
+          <span id="file-name" class="muted">MP4, MOV, MKV, AVI, WEBM and more</span>
+        </label>
+
+        <div class="row settings-row">
+          <label>Part length (seconds)
+            <input id="chunk-seconds" type="number" value="180" min="1" max="3600" />
+          </label>
+          <label>Output format
+            <select id="orientation">
+              <option value="vertical" selected>Vertical — 1080 × 1920 (9:16) — Crop to fill</option>
+              <option value="horizontal">Horizontal — 1920 × 1080 (16:9)</option>
+              <option value="vertical_full_frame">Vertical Full Frame — 1080 × 1920 (9:16) — No crop</option>
+            </select>
+          </label>
+        </div>
+
+        <button id="split-btn" class="primary-btn" type="submit">Split Video</button>
       </form>
     </section>
 
-    <section id="live-progress" hidden aria-live="polite"></section>
-    <div id="status" class="status" hidden></div><div id="result" class="result" hidden></div><div id="upload-result" class="result" hidden></div>
+    <section id="progress-section" class="workflow-section" hidden>
+      <div class="workflow-head">
+        <div>
+          <div class="section-kicker">PROCESSING</div>
+          <h2>Creating your clips</h2>
+          <p id="progress-label">Preparing…</p>
+        </div>
+        <span id="progress-value" class="workflow-badge">0%</span>
+      </div>
+      <div class="progress-track"><div id="progress-bar" class="progress-bar"></div></div>
+    </section>
+
+    <div id="status" class="status" hidden></div>
+    <div id="result" class="result" hidden></div>
   </main>
-  <script type="module" src="/static/app_multi.js"></script>
+  <script src="/static/app.js"></script>
 </body>
 </html>

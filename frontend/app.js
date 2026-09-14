@@ -1,363 +1,141 @@
 const splitForm = document.querySelector('#split-form');
-const youtubeForm = document.querySelector('#youtube-form');
-const showOldUploadBtn = document.querySelector('#show-old-upload-btn');
-const generationSection = document.querySelector('#generation-section');
-const oldUploadSection = document.querySelector('#old-upload-section');
-const oldFolderSelect = document.querySelector('#old-folder-select');
-const oldFolderEmpty = document.querySelector('#old-folder-empty');
 const fileInput = document.querySelector('#video-file');
 const fileName = document.querySelector('#file-name');
 const splitButton = document.querySelector('#split-btn');
-const uploadButton = document.querySelector('#upload-btn');
 const statusBox = document.querySelector('#status');
 const resultBox = document.querySelector('#result');
-const uploadResultBox = document.querySelector('#upload-result');
-const uploadSection = document.querySelector('#upload-section');
-const outputFolderBox = document.querySelector('#output-folder');
-const partsCountBox = document.querySelector('#parts-count');
-const uploadOutputDirectory = document.querySelector('#upload-output-directory');
-const uploadSummary = document.querySelector('#upload-summary');
-const uploadTitle = document.querySelector('#upload-title-template');
-const uploadDescription = document.querySelector('#upload-description');
-const uploadGap = document.querySelector('#upload-gap');
-const uploadTags = document.querySelector('#upload-tags');
-const uploadPrivacy = document.querySelector('#upload-privacy');
-const uploadCategory = document.querySelector('#upload-category-id');
-const uploadDelete = document.querySelector('#delete-after-upload');
-const uploadThumbnail = document.querySelector('#upload-thumbnail');
-const savedThumbnailNote = document.querySelector('#saved-thumbnail-note');
+const progressSection = document.querySelector('#progress-section');
+const progressBar = document.querySelector('#progress-bar');
+const progressValue = document.querySelector('#progress-value');
+const progressLabel = document.querySelector('#progress-label');
 
-let generatedFolder = '';
-
-fileInput?.addEventListener('change', () => {
+fileInput.addEventListener('change', () => {
   fileName.textContent = fileInput.files?.[0]?.name || 'MP4, MOV, MKV, AVI, WEBM and more';
 });
 
-showOldUploadBtn?.addEventListener('click', async () => {
-  generationSection.hidden = true;
-  uploadSection.hidden = true;
-  oldUploadSection.hidden = false;
-  statusBox.hidden = false;
-  statusBox.textContent = 'Loading output folders…';
-  try {
-    const folders = await loadOldFolders();
-    oldUploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    statusBox.textContent = folders.length
-      ? 'Select a folder. Its upload settings will open automatically.'
-      : 'No output folders with pending Shorts are available.';
-  } catch (error) {
-    statusBox.textContent = error.message;
-  }
-});
-
-oldFolderSelect?.addEventListener('change', () => {
-  if (oldFolderSelect.value) openExistingFolder(oldFolderSelect.value);
-  else uploadSection.hidden = true;
-});
-
-splitForm?.addEventListener('submit', async (event) => {
+splitForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const file = fileInput.files?.[0];
   if (!file) return;
 
   splitButton.disabled = true;
-  showOldUploadBtn.disabled = true;
-  uploadSection.hidden = true;
-  oldUploadSection.hidden = true;
   resultBox.hidden = true;
-  uploadResultBox.hidden = true;
-  statusBox.hidden = false;
-  statusBox.textContent = 'Generating all Shorts… YouTube upload is paused until generation finishes.';
+  statusBox.hidden = true;
+  progressSection.hidden = false;
+  setProgress(0, 'Uploading source video…');
 
   const chunkSeconds = Number(document.querySelector('#chunk-seconds').value || 180);
   const orientation = document.querySelector('#orientation').value;
-  const size = orientation === 'vertical' ? '1080 × 1920 (9:16)' : '1920 × 1080 (16:9)';
   const formData = new FormData();
   formData.append('file', file);
 
   try {
-    const response = await fetch(`/api/video/split?chunk_seconds=${encodeURIComponent(chunkSeconds)}&orientation=${encodeURIComponent(orientation)}`, {
+    const response = await fetch(`/api/video/split/start?chunk_seconds=${encodeURIComponent(chunkSeconds)}&orientation=${encodeURIComponent(orientation)}`, {
       method: 'POST',
       body: formData,
     });
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to generate the Shorts.');
+    if (!response.ok) throw new Error(data.detail || 'Unable to start the split job.');
 
-    await showUploadFormForNewFolder(data);
-    statusBox.textContent = `Generation complete — ${data.parts_created} Short(s) created at ${size}.`;
-    resultBox.hidden = false;
-    resultBox.innerHTML = `
-      <strong>All Shorts generated successfully.</strong><br><br>
-      <strong>Output folder:</strong> <code>${escapeHtml(data.output_directory)}</code><br><br>
-      <strong>Generated Shorts:</strong>
-      <ul>${(data.parts || []).map(name => `<li><code>${escapeHtml(name)}</code></li>`).join('')}</ul>
-      <p class="muted">Nothing was uploaded to YouTube during generation.</p>`;
-
-    await loadOldFolders();
-    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    await watchJob(data.job_id);
   } catch (error) {
+    setProgress(100, 'Split failed.');
+    statusBox.hidden = false;
     statusBox.textContent = error.message;
   } finally {
     splitButton.disabled = false;
-    showOldUploadBtn.disabled = false;
   }
 });
 
-youtubeForm?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  if (!generatedFolder) return;
+async function watchJob(jobId) {
+  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
+  const job = await response.json();
+  if (!response.ok) throw new Error(job.detail || 'Unable to read the split job.');
 
-  uploadButton.disabled = true;
-  splitButton.disabled = true;
-  showOldUploadBtn.disabled = true;
-  uploadResultBox.hidden = true;
+  const stream = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+  return new Promise((resolve, reject) => {
+    stream.addEventListener('task_started', event => updateFromEvent(event));
+    stream.addEventListener('split_progress', event => updateFromEvent(event));
+    stream.addEventListener('task_completed', event => updateFromEvent(event));
+    stream.addEventListener('task_failed', event => {
+      const data = parseEvent(event);
+      stream.close();
+      setProgress(100, 'Split failed.');
+      statusBox.hidden = false;
+      statusBox.textContent = data.error || 'Video splitting failed.';
+      reject(new Error(data.error || 'Video splitting failed.'));
+    });
+    stream.addEventListener('job_completed', event => {
+      const data = parseEvent(event);
+      stream.close();
+      const result = data.result || {};
+      renderResult(result);
+      resolve(result);
+    });
+    stream.addEventListener('job_failed', event => {
+      const data = parseEvent(event);
+      stream.close();
+      setProgress(100, 'Split failed.');
+      statusBox.hidden = false;
+      statusBox.textContent = data.error || 'Video splitting failed.';
+      reject(new Error(data.error || 'Video splitting failed.'));
+    });
+    stream.onerror = () => {
+      // The server closes SSE after terminal events. Give the final job state
+      // one short fallback check before treating the connection as an error.
+      setTimeout(async () => {
+        try {
+          const check = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
+          const latest = await check.json();
+          if (latest.status === 'completed') {
+            stream.close();
+            renderResult(latest.result || {});
+            resolve(latest.result || {});
+          } else if (latest.status === 'failed') {
+            stream.close();
+            reject(new Error(latest.error || 'Video splitting failed.'));
+          }
+        } catch (error) {
+          stream.close();
+          reject(error);
+        }
+      }, 300);
+    };
+  });
+}
+
+function updateFromEvent(event) {
+  const data = parseEvent(event);
+  const progress = Number(data.progress ?? 0);
+  const part = data.part && data.total_parts ? `Part ${data.part} of ${data.total_parts}` : '';
+  setProgress(progress, part || data.label || 'Processing…');
+}
+
+function parseEvent(event) {
+  try { return JSON.parse(event.data); } catch { return {}; }
+}
+
+function setProgress(value, label) {
+  const safeValue = Math.max(0, Math.min(100, Math.round(value)));
+  progressBar.style.width = `${safeValue}%`;
+  progressValue.textContent = `${safeValue}%`;
+  progressLabel.textContent = label;
+}
+
+function renderResult(data) {
+  setProgress(100, 'All clips created successfully.');
   statusBox.hidden = false;
-  const gap = Math.max(0, Number(uploadGap.value || 0));
-  statusBox.textContent = gap
-    ? `Uploading Shorts in order with a ${gap}-second gap between videos…`
-    : 'Uploading Shorts in generated order…';
-
-  const formData = new FormData();
-  formData.append('output_directory', generatedFolder);
-  formData.append('title_template', uploadTitle.value);
-  formData.append('description', uploadDescription.value);
-  formData.append('tags', uploadTags.value);
-  formData.append('privacy', uploadPrivacy.value);
-  formData.append('category_id', uploadCategory.value);
-  formData.append('made_for_kids', 'false');
-  formData.append('gap_seconds', String(gap));
-  formData.append('delete_after_upload', uploadDelete.checked ? 'true' : 'false');
-  if (uploadThumbnail.files?.[0]) formData.append('thumbnail', uploadThumbnail.files[0]);
-
-  try {
-    const response = await fetch('/api/youtube/upload', { method: 'POST', body: formData });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to upload to YouTube.');
-
-    const successCount = (data.results || []).filter(item => item.status === 'uploaded').length;
-    const failedCount = (data.results || []).filter(item => item.status === 'failed').length;
-    const thumbnailFailedCount = (data.results || []).filter(item => String(item.thumbnail_status || '').startsWith('failed')).length;
-    statusBox.textContent = failedCount
-      ? `${successCount} uploaded. Queue stopped on an error; ${data.remaining_files} Short(s) remain.`
-      : thumbnailFailedCount
-        ? `${successCount} uploaded, but ${thumbnailFailedCount} thumbnail(s) could not be attached.`
-        : `YouTube upload complete — ${successCount} Short(s) uploaded with the configured gap.`;
-
-    uploadResultBox.hidden = false;
-    uploadResultBox.innerHTML = `
-      <strong>YouTube upload report</strong><br><br>
-      <strong>Order:</strong> part_001 → part_002 → part_003 → …<br>
-      <strong>Gap:</strong> ${gap} second(s) between successful uploads<br>
-      <strong>Remaining local MP4s:</strong> ${data.remaining_files}<br><br>
-      <ul>${(data.results || []).map(item => `
-        <li>
-          <code>${escapeHtml(item.filename)}</code> — <strong>${escapeHtml(item.status)}</strong>
-          ${item.thumbnail_status ? ` — thumbnail: <strong>${escapeHtml(item.thumbnail_status)}</strong>` : ''}
-          ${item.url ? ` — <a href=\"${escapeHtml(item.url)}\" target=\"_blank\" rel=\"noopener\">Open on YouTube</a>` : ''}
-          ${item.deleted ? ' — deleted locally' : ''}
-          ${item.error ? ` — ${escapeHtml(item.error)}` : ''}
-        </li>`).join('')}</ul>`;
-
-    await loadOldFolders();
-  } catch (error) {
-    statusBox.textContent = error.message;
-  } finally {
-    uploadButton.disabled = false;
-    splitButton.disabled = false;
-    showOldUploadBtn.disabled = false;
-  }
-});
-
-async function loadOldFolders() {
-  const response = await fetch('/api/youtube/folders', { cache: 'no-store' });
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.detail || 'Unable to load output folders.');
-  renderOldFolders(data.folders || []);
-  return data.folders || [];
+  statusBox.textContent = `${data.parts_created || 0} clip(s) created and saved locally.`;
+  resultBox.hidden = false;
+  resultBox.innerHTML = `
+    <strong>Video split completed.</strong><br><br>
+    <strong>Source:</strong> ${escapeHtml(data.source_filename || '—')}<br>
+    <strong>Part length:</strong> ${escapeHtml(data.chunk_seconds || '—')} seconds<br>
+    <strong>Output folder:</strong> <code>${escapeHtml(data.output_directory || '—')}</code><br><br>
+    <strong>Generated clips:</strong>
+    <ul>${(data.parts || []).map(name => `<li><code>${escapeHtml(name)}</code></li>`).join('')}</ul>`;
 }
-
-function renderOldFolders(folders) {
-  oldFolderSelect.innerHTML = '';
-
-  const placeholder = document.createElement('option');
-  placeholder.value = '';
-  placeholder.textContent = folders.length ? 'Select an output folder…' : 'No pending output folders';
-  placeholder.selected = true;
-  oldFolderSelect.appendChild(placeholder);
-  oldFolderSelect.disabled = folders.length === 0;
-
-  oldFolderEmpty.hidden = folders.length > 0;
-  if (!folders.length) {
-    uploadSection.hidden = true;
-    return;
-  }
-
-  for (const folder of folders) {
-    const option = document.createElement('option');
-    option.value = folder.output_directory;
-    option.textContent = `${folder.folder} — ${folder.remaining} remaining`;
-    oldFolderSelect.appendChild(option);
-  }
-}
-
-async function openExistingFolder(outputDirectory) {
-  statusBox.hidden = false;
-  statusBox.textContent = 'Loading saved YouTube details…';
-  try {
-    const response = await fetch(`/api/youtube/folder?output_directory=${encodeURIComponent(outputDirectory)}`, { cache: 'no-store' });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to open this upload queue.');
-    showUploadForm(data);
-    statusBox.textContent = `${data.remaining} Short(s) are waiting in this folder. Saved settings are loaded.`;
-    uploadSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  } catch (error) {
-    statusBox.textContent = error.message;
-  }
-}
-
-async function showUploadFormForNewFolder(data) {
-  generatedFolder = data.output_directory;
-  uploadOutputDirectory.value = data.output_directory;
-  outputFolderBox.textContent = data.output_directory.split('/').pop();
-  partsCountBox.textContent = String(data.parts_created || 0);
-  uploadTitle.value = '{filename} #{number}';
-  uploadDescription.value = '';
-  uploadTags.value = 'shorts,youtube';
-  uploadGap.value = '60';
-  uploadPrivacy.value = 'private';
-  uploadCategory.value = '22';
-  uploadDelete.checked = true;
-  uploadThumbnail.value = '';
-  if (savedThumbnailNote) savedThumbnailNote.textContent = 'Optional. Select a thumbnail to reuse for every uploaded Short. It will be normalized automatically for YouTube.';
-  uploadSection.hidden = false;
-}
-
-function showUploadForm(data) {
-  generatedFolder = data.output_directory;
-  uploadOutputDirectory.value = data.output_directory;
-  outputFolderBox.textContent = data.folder || data.output_directory;
-  partsCountBox.textContent = String(data.remaining ?? data.pending_order?.length ?? 0);
-
-  const metadata = data.metadata || {};
-  const youtube = metadata.youtube || {};
-  const upload = metadata.upload || {};
-
-  uploadTitle.value = metadata.title_template || '{filename} #{number}';
-  uploadDescription.value = metadata.description || '';
-  uploadTags.value = Array.isArray(metadata.tags) ? metadata.tags.join(', ') : 'shorts,youtube';
-  uploadGap.value = String(upload.gap_seconds ?? 60);
-  uploadPrivacy.value = youtube.privacy || 'private';
-  uploadCategory.value = youtube.category_id || '22';
-  uploadDelete.checked = upload.delete_after_upload !== false;
-  uploadThumbnail.value = '';
-
-  if (savedThumbnailNote) {
-    savedThumbnailNote.textContent = data.saved_thumbnail
-      ? `Saved thumbnail: ${data.saved_thumbnail}. It will be normalized and reused automatically.`
-      : 'Optional. Select a thumbnail to reuse for every uploaded Short. It will be normalized automatically for YouTube.';
-  }
-
-  uploadSection.hidden = false;
-  uploadButton.disabled = !data.remaining;
-}
-
-window.addEventListener('DOMContentLoaded', () => {
-  uploadSection.hidden = true;
-  oldUploadSection.hidden = true;
-});
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>'\"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
 }
-
-// Multi-platform upload UI. The original YouTube form is replaced after its
-// legacy listeners are installed, so the new queue becomes the single upload path.
-window.addEventListener('DOMContentLoaded', () => {
-  const originalForm = document.querySelector('#youtube-form');
-  if (!originalForm) return;
-  const form = originalForm.cloneNode(true);
-  originalForm.replaceWith(form);
-
-  const actions = form.querySelector('.upload-actions');
-  const uploadGrid = form.querySelector('.upload-form-grid');
-  const platformRow = document.createElement('div');
-  platformRow.className = 'full-width';
-  platformRow.innerHTML = `
-    <label>Upload to
-      <div id="platform-picker" class="platform-picker">
-        <label><input type="checkbox" value="youtube" checked> YouTube Shorts</label>
-        <label><input type="checkbox" value="facebook" disabled> Facebook Page <small>Connect Meta first</small></label>
-        <label><input type="checkbox" value="instagram" disabled> Instagram Reels <small>Connect Meta first</small></label>
-      </div>
-    </label>`;
-  uploadGrid?.prepend(platformRow);
-
-  const gapHelp = form.querySelector('#upload-gap')?.parentElement?.querySelector('small');
-  if (gapHelp) gapHelp.textContent = 'Mandatory minimum delay after the previous clip finishes on all selected platforms.';
-  if (uploadSummary) uploadSummary.textContent = 'Select platforms and a fixed clip-to-clip gap. The queue cannot start the next clip before that gap expires.';
-
-  form.addEventListener('submit', async (event) => {
-    event.preventDefault();
-    if (!generatedFolder) return;
-
-    const selected = [...form.querySelectorAll('#platform-picker input:checked')].map(input => input.value);
-    if (!selected.length) {
-      statusBox.textContent = 'Select at least one platform.';
-      return;
-    }
-    const gap = Math.max(0, Math.min(86400, Number(form.querySelector('#upload-gap')?.value || 0)));
-    uploadButton.disabled = true;
-    statusBox.hidden = false;
-    uploadResultBox.hidden = true;
-    statusBox.textContent = `Starting ${selected.join(' + ')} upload queue. Clip-to-clip gap: ${gap}s.`;
-
-    const payload = new FormData();
-    payload.append('output_directory', generatedFolder);
-    payload.append('platforms', selected.join(','));
-    payload.append('title_template', form.querySelector('#upload-title-template')?.value || '{filename} #{number}');
-    payload.append('description', form.querySelector('#upload-description')?.value || '');
-    payload.append('tags', form.querySelector('#upload-tags')?.value || 'shorts,youtube');
-    payload.append('privacy', form.querySelector('#upload-privacy')?.value || 'private');
-    payload.append('category_id', form.querySelector('#upload-category-id')?.value || '22');
-    payload.append('made_for_kids', 'false');
-    payload.append('gap_seconds', String(gap));
-    payload.append('delete_after_upload', form.querySelector('#delete-after-upload')?.checked ? 'true' : 'false');
-    const thumbnail = form.querySelector('#upload-thumbnail')?.files?.[0];
-    if (thumbnail) payload.append('thumbnail', thumbnail);
-
-    try {
-      const response = await fetch('/api/upload/start', { method: 'POST', body: payload });
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.detail || 'Unable to start the upload queue.');
-      statusBox.textContent = data.stopped_on_error
-        ? `Queue paused after a platform error. ${data.remaining_files} clip(s) remain.`
-        : `Queue finished. Gap of ${gap}s was enforced between completed clips.`;
-      uploadResultBox.hidden = false;
-      uploadResultBox.innerHTML = `
-        <strong>Multi-platform upload report</strong><br><br>
-        <strong>Platforms:</strong> ${escapeHtml(selected.join(', '))}<br>
-        <strong>Fixed clip gap:</strong> ${gap}s (enforced after all selected platforms finish each clip)<br>
-        <strong>Processed:</strong> ${data.processed}<br>
-        <strong>Remaining local MP4s:</strong> ${data.remaining_files}<br><br>
-        <ul>${(data.results || []).map(item => `
-          <li><code>${escapeHtml(item.filename)}</code>
-            <ul>${Object.entries(item.platforms || {}).map(([platform, result]) => `<li>${escapeHtml(platform)} — <strong>${escapeHtml(result.status || '')}</strong>${result.url ? ` — <a href="${escapeHtml(result.url)}" target="_blank" rel="noopener">Open</a>` : ''}${result.error ? ` — ${escapeHtml(result.error)}` : ''}</li>`).join('')}</ul>
-          </li>`).join('')}</ul>`;
-    } catch (error) {
-      statusBox.textContent = error.message;
-    } finally {
-      uploadButton.disabled = false;
-    }
-  });
-
-  fetch('/api/upload/platforms', { cache: 'no-store' })
-    .then(response => response.json())
-    .then(data => {
-      for (const platform of data.platforms || []) {
-        const input = form.querySelector(`#platform-picker input[value="${platform.id}"]`);
-        if (!input) continue;
-        input.disabled = !platform.configured;
-      }
-    })
-    .catch(() => {});
-});

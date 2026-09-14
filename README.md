@@ -1,90 +1,53 @@
 # Video Splitter 3 Min
 
-A local FastAPI + FFmpeg tool that uploads one video, splits the complete video into sequential clips, converts clips to YouTube-friendly sizes, and can automatically upload Shorts to YouTube using the YouTube Data API.
+A local FastAPI + FFmpeg application for splitting a video into sequential clips. **This project does not upload videos to YouTube, Facebook, Instagram, or any other platform.**
 
-## Features
+## What it does
 
-- Upload one video through the web UI.
-- Split the complete source video into sequential parts.
-- Default chunk length: 180 seconds (3 minutes).
-- Custom chunk length is supported.
-- **Vertical output:** `1080 × 1920` (9:16), suitable for YouTube Shorts.
-- **Horizontal output:** `1920 × 1080` (16:9).
-- **Vertical Full Frame output:** `1080 × 1920` (9:16), preserves the complete source frame without crop/zoom, centers it on a black canvas, and adds `Part N` at the top plus `Like and comment` at the bottom.
-- Standard vertical/horizontal resizing preserves aspect ratio; excess area is cropped instead of stretching.
-- Vertical Full Frame resizing preserves the complete source and uses padding instead of cropping.
-- Vertical Full Frame text is rendered with Pillow as a transparent overlay, so it does not require FFmpeg's optional `drawtext`/libfreetype filter.
-- Ordered output names: `part_001.mp4`, `part_002.mp4`, etc.
-- Every source video gets its own output folder.
-- Every output folder contains one metadata configuration shared by all its Shorts.
-- Optional common thumbnail for every Short in that folder.
-- Background watcher automatically uploads folders configured with `auto_upload: true`.
-- Upload state is saved per clip so already-uploaded clips are skipped after restart.
-- OAuth credentials/tokens are ignored by Git and never need to be committed.
+- Upload one source video through the local web UI.
+- Split the complete video into sequential parts.
+- Default part length: **180 seconds (3 minutes)**.
+- Choose a custom part length from 1–3600 seconds.
+- Generate vertical 1080×1920 (9:16) clips.
+- Generate horizontal 1920×1080 (16:9) clips.
+- Generate vertical full-frame 1080×1920 clips without cropping; the source is centered on a black canvas with the existing Part N / Like and comment overlay.
+- Preserve audio when available.
+- Store each source video's parts in its own output folder.
+- Use ordered filenames such as `part_001.mp4`, `part_002.mp4`, etc.
+- Show generation progress in the local web UI.
 
-## Output architecture
+## What was removed
+
+All social-upload functionality has been removed from the application, including:
+
+- YouTube upload APIs and OAuth.
+- Facebook/Instagram upload integrations and OAuth.
+- Multi-account management.
+- Automatic upload watcher/queue.
+- Upload gap scheduling and upload status tracking.
+- Upload metadata and thumbnail management.
+- Upload-related UI and account screens.
+- Google API authentication dependencies.
+
+The application now has one responsibility: **split the source video and save the generated clips locally.**
+
+## Output
 
 ```text
 output/
 └── my_video_ab12cd34/
-    ├── _config/
-    │   ├── metadata.json
-    │   └── upload_status.json
-    ├── thumbnail.jpg              # optional, shared by all Shorts
     ├── part_001.mp4
     ├── part_002.mp4
     ├── part_003.mp4
-    └── READY                       # created only after splitting finishes
+    └── READY
 ```
 
-Example `metadata.json`:
+## Requirements
 
-```json
-{
-  "title_template": "Jungle Book | Mowgli Adventure #{number}",
-  "description": "Watch this Short...\n\n#shorts #mowgli #junglestory",
-  "tags": ["shorts", "mowgli", "jungle book"],
-  "thumbnail": "thumbnail.jpg",
-  "youtube": {
-    "privacy": "private",
-    "category_id": "22",
-    "made_for_kids": false
-  },
-  "upload": {
-    "enabled": true,
-    "auto_upload": true
-  }
-}
-```
+- Python 3.11+
+- FFmpeg and FFprobe available on PATH, or configure their paths in `.env`.
 
-Supported title variables:
-
-- `{number}` → `1`, `2`, `3`...
-- `{filename}` → the generated output-folder name
-
-For example, `part_001.mp4` becomes `Jungle Book | Mowgli Adventure #1`.
-
-## YouTube API setup
-
-1. Create a Google Cloud project.
-2. Enable **YouTube Data API v3**.
-3. Configure the OAuth consent screen.
-4. Create an OAuth **Desktop app** client.
-5. Download the client JSON and save it locally as:
-
-```text
-credentials/client_secret.json
-```
-
-Do **not** commit that file. The app stores the OAuth token locally at:
-
-```text
-tokens/token.json
-```
-
-On the first automatic upload, the app opens a browser for Google authorization. Later runs reuse the saved token when possible.
-
-## Run
+## Run locally
 
 ```bash
 python3 -m venv .venv
@@ -93,42 +56,56 @@ pip install -r requirements.txt
 python run.py
 ```
 
-Open `http://127.0.0.1:8000`.
+Then open:
 
-The upload watcher starts automatically with `run.py` and checks the `output/` directory periodically.
-
-## API
-
-`POST /api/video/split?chunk_seconds=180&orientation=vertical` with multipart field `file`.
-
-Supported `orientation` values:
-
-- `vertical` — 1080×1920, existing crop-to-fill Shorts mode.
-- `horizontal` — 1920×1080, existing horizontal mode.
-- `vertical_full_frame` — 1080×1920, no crop/zoom; complete source frame is centered with padding and text overlays.
-
-Additional form fields:
-
-- `title_template` — common title pattern for all clips.
-- `description` — common description.
-- `tags` — comma-separated tags.
-- `privacy` — `private`, `unlisted`, or `public`.
-- `category_id` — YouTube category ID, default `22`.
-- `made_for_kids` — `true`/`false` according to the actual content.
-- `auto_upload` — `true` to enable automatic upload.
-- `thumbnail` — optional JPG/JPEG/PNG shared by all clips.
+```text
+http://127.0.0.1:8000
+```
 
 ## Configuration
 
-Environment variables:
+Copy `.env.example` to `.env` if you want to change defaults:
 
-- `CHUNK_SECONDS` — default split length (`180`).
-- `MAX_UPLOAD_MB` — maximum uploaded file size (`5120`).
-- `FFMPEG_BIN` — FFmpeg executable/path (`ffmpeg`).
-- `FFPROBE_BIN` — FFprobe executable/path (`ffprobe`).
-- `UPLOAD_WATCH_INTERVAL` — watcher interval in seconds (`15`).
-- `VIDEO_TEXT_FONT` — optional font file path used for Vertical Full Frame text rendering.
+```env
+CHUNK_SECONDS=180
+MAX_UPLOAD_MB=5120
+FFMPEG_BIN=ffmpeg
+FFPROBE_BIN=ffprobe
+```
 
-## Notes
+## API
 
-Generated videos, OAuth credentials, and OAuth tokens are kept out of Git via `.gitignore`. The repository stores source code and configuration templates only.
+### Start a background split job
+
+`POST /api/video/split/start`
+
+Multipart field:
+
+- `file` — source video
+
+Query parameters:
+
+- `chunk_seconds` — 1 to 3600, default 180
+- `orientation` — `vertical`, `horizontal`, or `vertical_full_frame`
+
+### Synchronous split
+
+`POST /api/video/split`
+
+Uses the same file and query parameters and returns the generated part list when processing finishes.
+
+### Job status
+
+`GET /api/jobs/{job_id}`
+
+### Live job events
+
+`GET /api/jobs/{job_id}/events`
+
+### Health
+
+`GET /api/health`
+
+## License
+
+See [LICENSE](LICENSE).
