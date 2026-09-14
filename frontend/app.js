@@ -10,19 +10,20 @@ const progressValue = document.querySelector('#progress-value');
 const progressLabel = document.querySelector('#progress-label');
 
 fileInput.addEventListener('change', () => {
-  fileName.textContent = fileInput.files?.[0]?.name || 'MP4, MOV, MKV, AVI, WEBM and more';
+  fileName.textContent = fileInput.files?.[0]?.name || 'Select your source video';
 });
 
 splitForm.addEventListener('submit', async (event) => {
   event.preventDefault();
+
   const file = fileInput.files?.[0];
   if (!file) return;
 
   splitButton.disabled = true;
-  resultBox.hidden = true;
   statusBox.hidden = true;
+  resultBox.hidden = true;
   progressSection.hidden = false;
-  setProgress(0, 'Uploading source video…');
+  setProgress(0, 'Starting split…');
 
   const chunkSeconds = Number(document.querySelector('#chunk-seconds').value || 180);
   const orientation = document.querySelector('#orientation').value;
@@ -30,76 +31,54 @@ splitForm.addEventListener('submit', async (event) => {
   formData.append('file', file);
 
   try {
-    const response = await fetch(`/api/video/split/start?chunk_seconds=${encodeURIComponent(chunkSeconds)}&orientation=${encodeURIComponent(orientation)}`, {
-      method: 'POST',
-      body: formData,
-    });
+    const response = await fetch(
+      `/api/video/split/start?chunk_seconds=${encodeURIComponent(chunkSeconds)}&orientation=${encodeURIComponent(orientation)}`,
+      { method: 'POST', body: formData },
+    );
+
     const data = await response.json();
-    if (!response.ok) throw new Error(data.detail || 'Unable to start the split job.');
+    if (!response.ok) throw new Error(data.detail || 'Unable to start video splitting.');
 
     await watchJob(data.job_id);
   } catch (error) {
     setProgress(100, 'Split failed.');
     statusBox.hidden = false;
-    statusBox.textContent = error.message;
+    statusBox.textContent = error.message || 'Video splitting failed.';
   } finally {
     splitButton.disabled = false;
   }
 });
 
-async function watchJob(jobId) {
-  const response = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
-  const job = await response.json();
-  if (!response.ok) throw new Error(job.detail || 'Unable to read the split job.');
-
-  const stream = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+function watchJob(jobId) {
   return new Promise((resolve, reject) => {
-    stream.addEventListener('task_started', event => updateFromEvent(event));
-    stream.addEventListener('split_progress', event => updateFromEvent(event));
-    stream.addEventListener('task_completed', event => updateFromEvent(event));
-    stream.addEventListener('task_failed', event => {
+    const stream = new EventSource(`/api/jobs/${encodeURIComponent(jobId)}/events`);
+
+    stream.addEventListener('task_started', updateFromEvent);
+    stream.addEventListener('split_progress', updateFromEvent);
+    stream.addEventListener('task_completed', updateFromEvent);
+
+    stream.addEventListener('job_completed', (event) => {
       const data = parseEvent(event);
       stream.close();
+      renderResult(data.result || {});
+      resolve(data.result || {});
+    });
+
+    const fail = (event) => {
+      const data = parseEvent(event);
+      stream.close();
+      const message = data.error || 'Video splitting failed.';
       setProgress(100, 'Split failed.');
       statusBox.hidden = false;
-      statusBox.textContent = data.error || 'Video splitting failed.';
-      reject(new Error(data.error || 'Video splitting failed.'));
-    });
-    stream.addEventListener('job_completed', event => {
-      const data = parseEvent(event);
-      stream.close();
-      const result = data.result || {};
-      renderResult(result);
-      resolve(result);
-    });
-    stream.addEventListener('job_failed', event => {
-      const data = parseEvent(event);
-      stream.close();
-      setProgress(100, 'Split failed.');
-      statusBox.hidden = false;
-      statusBox.textContent = data.error || 'Video splitting failed.';
-      reject(new Error(data.error || 'Video splitting failed.'));
-    });
+      statusBox.textContent = message;
+      reject(new Error(message));
+    };
+
+    stream.addEventListener('task_failed', fail);
+    stream.addEventListener('job_failed', fail);
     stream.onerror = () => {
-      // The server closes SSE after terminal events. Give the final job state
-      // one short fallback check before treating the connection as an error.
-      setTimeout(async () => {
-        try {
-          const check = await fetch(`/api/jobs/${encodeURIComponent(jobId)}`);
-          const latest = await check.json();
-          if (latest.status === 'completed') {
-            stream.close();
-            renderResult(latest.result || {});
-            resolve(latest.result || {});
-          } else if (latest.status === 'failed') {
-            stream.close();
-            reject(new Error(latest.error || 'Video splitting failed.'));
-          }
-        } catch (error) {
-          stream.close();
-          reject(error);
-        }
-      }, 300);
+      stream.close();
+      reject(new Error('Connection to the split job was lost.'));
     };
   });
 }
@@ -112,7 +91,11 @@ function updateFromEvent(event) {
 }
 
 function parseEvent(event) {
-  try { return JSON.parse(event.data); } catch { return {}; }
+  try {
+    return JSON.parse(event.data);
+  } catch {
+    return {};
+  }
 }
 
 function setProgress(value, label) {
@@ -128,7 +111,7 @@ function renderResult(data) {
   statusBox.textContent = `${data.parts_created || 0} clip(s) created and saved locally.`;
   resultBox.hidden = false;
   resultBox.innerHTML = `
-    <strong>Video split completed.</strong><br><br>
+    <strong>Split completed.</strong><br><br>
     <strong>Source:</strong> ${escapeHtml(data.source_filename || '—')}<br>
     <strong>Part length:</strong> ${escapeHtml(data.chunk_seconds || '—')} seconds<br>
     <strong>Output folder:</strong> <code>${escapeHtml(data.output_directory || '—')}</code><br><br>
@@ -137,5 +120,11 @@ function renderResult(data) {
 }
 
 function escapeHtml(value) {
-  return String(value).replace(/[&<>'\"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[char]));
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    '&': '&amp;',
+    '<': '&lt;',
+    '>': '&gt;',
+    '"': '&quot;',
+    "'": '&#39;',
+  }[char]));
 }
